@@ -7,7 +7,7 @@ function Home() {
       <section className="home-hero">
         <div className="home-container home-hero__inner">
           <div className="home-hero__content">
-            <h1 className="home-title">Quality products, delivered with care</h1>
+            <h1 className="home-title">Experience Quality, Redefined</h1>
 
             <p className="home-subtitle">
               Discover our curated collection of premium products. Simple, clean, and built to last.
@@ -74,7 +74,7 @@ function Home() {
         <div className="create">
           <h2 className='create-title'>Ready to get started?</h2>
           <p className="create-text">Create an account today and enjoy a seamless shopping experience.</p>
-          <button className="create-btn">Create Account</button>
+          <button className="create-btn">Join the Community</button>
         </div>
       </section>
     </div>
