@@ -1,4 +1,5 @@
 import { ArrowRight, Truck, Shield, ShoppingBag } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import './styles/home.css'
 
 function Home() {
@@ -61,10 +62,10 @@ function Home() {
       <section className="products">
         <div className="featured-header">
           <h2 className="product-title">Featured Products</h2>
-          <button className="view-btn">
+          <Link className="view-btn" to="/products">
             <span>View All</span>
             <ArrowRight strokeWidth={2.5} />
-          </button>
+          </Link>
         </div>
         <div className="product-grid">
           {/* codes */}
