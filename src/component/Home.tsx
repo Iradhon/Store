@@ -15,10 +15,12 @@ function Home() {
             </p>
 
             <div className="home-cta">
-              <button className="home-button">
-                <span>Shop Now</span>
-                <ArrowRight strokeWidth={2.5} />
-              </button>
+                <Link to="/products" className='h-btn'>
+                  <button className="home-button">
+                    <span>Shop Now</span>
+                    <ArrowRight strokeWidth={2.5} />
+                  </button>
+                </Link>
             </div>
           </div>
         </div>
