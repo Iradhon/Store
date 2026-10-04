@@ -1,4 +1,5 @@
 import { Search, Handbag, Menu } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import './styles/nav.css'
 
 export default function Navbar() {
@@ -29,9 +30,9 @@ export default function Navbar() {
           </form>
 
           <div className="navbar__actions">
-            <a className="navbar__cart" href="/cart" aria-label="Cart">
+            <Link className="navbar__cart" to="/cart" aria-label="Cart">
               <Handbag />
-            </a>
+            </Link>
             <a className="navbar__signin" href="/auth">
               Sign In
             </a>
