@@ -1,19 +1,12 @@
-import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { ArrowRight, ChevronDown, Filter, Search } from 'lucide-react'
+import { useId, useMemo, useRef, useState, useEffect, type FormEvent, type KeyboardEvent } from 'react'
+import { ArrowRight, ChevronDown, Filter, RotateCcw, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
+import { products } from '../data/products'
+import type { Product } from '../types'
+import ProductCard from './ProductCard'
 import './styles/product.css'
 
-interface Product {
-  id: string
-  name: string
-  category: string
-  price: number
-  image: string
-  createdAt: string
-}
-
-const products: Product[] = []
 const categories = [...new Set(products.map((product) => product.category))]
 
 type ProductSort = 'newest' | 'price-ascending' | 'price-descending'
@@ -157,10 +150,23 @@ function FilterDropdown({ label, value, options, onChange, icon: Icon }: FilterD
   )
 }
 
+const INITIAL_PAGE_SIZE = 8
+const PAGE_SIZE_INCREMENT = 4
+
 export default function Products() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [sort, setSort] = useState<ProductSort>('newest')
+  const [visibleCount, setVisibleCount] = useState(INITIAL_PAGE_SIZE)
+  const [prevFilterKey, setPrevFilterKey] = useState(`${search}|${category}|${sort}`)
+  const [addedNotification, setAddedNotification] = useState<string | null>(null)
+
+  // Reset pagination during render if search/filter changes
+  const currentFilterKey = `${search}|${category}|${sort}`
+  if (prevFilterKey !== currentFilterKey) {
+    setPrevFilterKey(currentFilterKey)
+    setVisibleCount(INITIAL_PAGE_SIZE)
+  }
 
   const filteredProducts = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase()
@@ -169,7 +175,8 @@ export default function Products() {
       .filter((product) => {
         const matchesSearch =
           normalizedSearch.length === 0 ||
-          product.name.toLowerCase().includes(normalizedSearch)
+          product.name.toLowerCase().includes(normalizedSearch) ||
+          product.category.toLowerCase().includes(normalizedSearch)
         const matchesCategory = category.length === 0 || product.category === category
 
         return matchesSearch && matchesCategory
@@ -185,9 +192,29 @@ export default function Products() {
     event.preventDefault()
   }
 
+  function handleAddToCart(product: Product) {
+    setAddedNotification(`Added "${product.name}" to cart`)
+    setTimeout(() => {
+      setAddedNotification(null)
+    }, 2500)
+  }
+
+  function handleLoadMore() {
+    setVisibleCount((prev) => Math.min(prev + PAGE_SIZE_INCREMENT, filteredProducts.length))
+  }
+
+  const visibleProducts = filteredProducts.slice(0, visibleCount)
+  const hasMore = visibleCount < filteredProducts.length
+
   return (
     <section className="product-directory">
       <div className="product-directory__container">
+        {addedNotification && (
+          <div className="product-toast" role="status">
+            <span>{addedNotification}</span>
+          </div>
+        )}
+
         <header className="product-directory__header">
           <div>
             <h1 className="product-directory__title">All Products</h1>
@@ -209,9 +236,16 @@ export default function Products() {
                 aria-label="Search products"
               />
             </label>
-            <button className="product-search__submit" type="submit">
-              Search
-            </button>
+            {search && (
+              <button
+                type="button"
+                className="product-search__clear"
+                onClick={() => setSearch('')}
+                aria-label="Clear search"
+              >
+                Clear
+              </button>
+            )}
           </form>
 
           <div className="product-filters">
@@ -243,22 +277,34 @@ export default function Products() {
           </div>
         </div>
 
-        {filteredProducts.length > 0 ? (
-          <div className="product-directory__grid">
-            {filteredProducts.map((product) => (
-              <article className="product-card" key={product.id}>
-                <img className="product-card__image" src={product.image} alt={product.name} />
-                <p className="product-card__category">{product.category}</p>
-                <h2 className="product-card__name">{product.name}</h2>
-                <p className="product-card__price">
-                  {new Intl.NumberFormat('en-US', {
-                    style: 'currency',
-                    currency: 'USD',
-                  }).format(product.price)}
+        {visibleProducts.length > 0 ? (
+          <>
+            <div className="product-directory__grid">
+              {visibleProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onAddToCart={handleAddToCart}
+                />
+              ))}
+            </div>
+
+            {hasMore && (
+              <div className="product-load-more">
+                <button
+                  type="button"
+                  className="product-load-more__btn"
+                  onClick={handleLoadMore}
+                >
+                  <span>Load More Products</span>
+                  <RotateCcw size={16} className="product-load-more__icon" />
+                </button>
+                <p className="product-load-more__count">
+                  Showing {visibleProducts.length} of {filteredProducts.length} products
                 </p>
-              </article>
-            ))}
-          </div>
+              </div>
+            )}
+          </>
         ) : (
           <div className="product-empty-state" role="status">
             <h2>

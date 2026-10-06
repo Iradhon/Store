@@ -1,4 +1,7 @@
 import './styles/footer.css'
+import { Link } from 'react-router-dom'
+
+const CURRENT_YEAR = new Date().getFullYear()
 
 export default function Footer() {
   return (
@@ -6,31 +9,31 @@ export default function Footer() {
       <div className="site-footer__container">
         <div className="site-footer__columns">
           <div className="site-footer__brand">
-            <a className="site-footer__logo" href="/">
+            <Link className="site-footer__logo" to="/">
               STORE
-            </a>
+            </Link>
             <p>Quality products, delivered with care.</p>
           </div>
 
           <nav className="site-footer__section" aria-label="Shop">
             <h2>Shop</h2>
-            <a href="/products">All Products</a>
+            <Link to="/products">All Products</Link>
           </nav>
 
           <nav className="site-footer__section" aria-label="Account">
             <h2>Account</h2>
-            <a href="/auth">Sign In</a>
-            <a href="/orders">Order History</a>
+            <Link to="/auth">Sign In</Link>
+            <Link to="/orders">Order History</Link>
           </nav>
 
           <div className="site-footer__section">
             <h2>Support</h2>
-            <a href="mailto:support@store.com">Contact: support@store.com</a>
+            <a href="mailto:honoreirad50@gmail.com">Contact: honoreirad50@gmail.com</a>
           </div>
         </div>
 
         <div className="site-footer__copyright">
-          © {new Date().getFullYear()} STORE. All rights reserved.
+          © {CURRENT_YEAR} STORE. All rights reserved.
         </div>
       </div>
     </footer>

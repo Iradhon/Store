@@ -1,10 +1,32 @@
+import { useState } from 'react'
 import { ArrowRight, Truck, Shield, ShoppingBag } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { products } from '../data/products'
+import type { Product } from '../types'
+import ProductCard from './ProductCard'
 import './styles/home.css'
+import './styles/product.css'
 
 function Home() {
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+
+  const featuredProducts = products.filter((p) => p.featured).slice(0, 4)
+
+  function handleAddToCart(product: Product) {
+    setToastMessage(`Added "${product.name}" to cart`)
+    setTimeout(() => {
+      setToastMessage(null)
+    }, 2500)
+  }
+
   return (
     <div className="home-page">
+      {toastMessage && (
+        <div className="product-toast" role="status">
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       <section className="home-hero">
         <div className="home-container home-hero__inner">
           <div className="home-hero__content">
@@ -15,12 +37,10 @@ function Home() {
             </p>
 
             <div className="home-cta">
-                <Link to="/products" className='h-btn'>
-                  <button className="home-button">
-                    <span>Shop Now</span>
-                    <ArrowRight strokeWidth={2.5} />
-                  </button>
-                </Link>
+              <Link to="/products" className="h-btn home-button">
+                <span>Shop Now</span>
+                <ArrowRight strokeWidth={2.5} />
+              </Link>
             </div>
           </div>
         </div>
@@ -61,6 +81,7 @@ function Home() {
           </div>
         </div>
       </section>
+
       <section className="products">
         <div className="featured-header">
           <h2 className="product-title">Featured Products</h2>
@@ -70,18 +91,27 @@ function Home() {
           </Link>
         </div>
         <div className="product-grid">
-          {/* codes */}
+          {featuredProducts.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              onAddToCart={handleAddToCart}
+            />
+          ))}
         </div>
       </section>
+
       <section className="create-account">
         <div className="create">
-          <h2 className='create-title'>Ready to get started?</h2>
+          <h2 className="create-title">Ready to get started?</h2>
           <p className="create-text">Create an account today and enjoy a seamless shopping experience.</p>
-          <button className="create-btn">Join the Community</button>
+          <Link to="/auth" className="create-btn">
+            Join the Community
+          </Link>
         </div>
       </section>
     </div>
   )
 }
 
-export default Home;
+export default Home
