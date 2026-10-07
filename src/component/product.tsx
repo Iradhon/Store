@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import { products } from '../data/products'
 import type { Product } from '../types'
+import { useCart } from '../context/useCart'
 import ProductCard from './ProductCard'
 import './styles/product.css'
 
@@ -188,11 +189,14 @@ export default function Products() {
       })
   }, [search, category, sort])
 
+  const { addToCart } = useCart()
+
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
   }
 
   function handleAddToCart(product: Product) {
+    addToCart(product, 1)
     setAddedNotification(`Added "${product.name}" to cart`)
     setTimeout(() => {
       setAddedNotification(null)

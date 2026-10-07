@@ -3,16 +3,19 @@ import { ArrowRight, Truck, Shield, ShoppingBag } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { products } from '../data/products'
 import type { Product } from '../types'
+import { useCart } from '../context/useCart'
 import ProductCard from './ProductCard'
 import './styles/home.css'
 import './styles/product.css'
 
 function Home() {
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const { addToCart } = useCart()
 
   const featuredProducts = products.filter((p) => p.featured).slice(0, 4)
 
   function handleAddToCart(product: Product) {
+    addToCart(product, 1)
     setToastMessage(`Added "${product.name}" to cart`)
     setTimeout(() => {
       setToastMessage(null)

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Search, Handbag, Menu, X, Home as HomeIcon, ShoppingBag, User } from 'lucide-react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { useCart } from '../context/useCart'
 import './styles/nav.css'
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const { totalItemsCount } = useCart()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -73,8 +75,13 @@ export default function Navbar() {
           </form>
 
           <div className="navbar__actions">
-            <Link className="navbar__cart" to="/cart" aria-label="Cart">
+            <Link className="navbar__cart" to="/cart" aria-label={`Cart with ${totalItemsCount} items`}>
               <Handbag />
+              {totalItemsCount > 0 && (
+                <span className="navbar__cart-badge" aria-label={`${totalItemsCount} items in cart`}>
+                  {totalItemsCount}
+                </span>
+              )}
             </Link>
             <Link className="navbar__signin" to="/auth">
               Sign In
@@ -160,6 +167,9 @@ export default function Navbar() {
             >
               <Handbag size={18} />
               <span>My Cart</span>
+              {totalItemsCount > 0 && (
+                <span className="mobile-drawer__badge">{totalItemsCount}</span>
+              )}
             </Link>
             <Link
               className="mobile-drawer__link"
