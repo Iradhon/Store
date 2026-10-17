@@ -33,6 +33,7 @@ export type PaymentMethod = 'card' | 'paypal'
 
 export interface Order {
   id: string
+  userId?: string
   createdAt: string
   items: CartItem[]
   shippingAddress: ShippingAddress
@@ -44,4 +45,12 @@ export interface Order {
   tax: number
   total: number
   status: 'processing' | 'shipped' | 'delivered'
+}
+
+export interface UserProfile {
+  id: string
+  email: string
+  fullName?: string
+  avatarUrl?: string
+  createdAt?: string
 }

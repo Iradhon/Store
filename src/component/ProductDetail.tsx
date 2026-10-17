@@ -12,7 +12,8 @@ import {
   Minus,
   Plus,
 } from 'lucide-react'
-import { products } from '../data/products'
+import { products as fallbackProducts } from '../data/products'
+import { getProductById, getProducts } from '../services/productService'
 import type { Product } from '../types'
 import { useCart } from '../context/useCart'
 import ProductCard from './ProductCard'
@@ -26,18 +27,33 @@ export default function ProductDetail() {
   const [prevId, setPrevId] = useState(id)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
-  // Reset quantity during render if product ID changes (idiomatic React Compiler pattern)
+  const [product, setProduct] = useState<Product | undefined>(() =>
+    fallbackProducts.find((p) => p.id === id),
+  )
+  const [allProducts, setAllProducts] = useState<Product[]>(fallbackProducts)
+
+  // Fetch product and related products
+  useEffect(() => {
+    if (id) {
+      getProductById(id).then((p) => {
+        if (p) setProduct(p)
+      })
+    }
+    getProducts().then((data) => {
+      if (data.length > 0) setAllProducts(data)
+    })
+  }, [id])
+
+  // Reset quantity during render if product ID changes
   if (prevId !== id) {
     setPrevId(id)
     setQuantity(1)
   }
 
-  // Scroll to top when product ID changes (synchronizing with external browser window)
+  // Scroll to top when product ID changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [id])
-
-  const product = products.find((p) => p.id === id)
 
   const { addToCart } = useCart()
 
@@ -56,7 +72,7 @@ export default function ProductDetail() {
     )
   }
 
-  const relatedProducts = products
+  const relatedProducts = allProducts
     .filter((p) => p.category === product.category && p.id !== product.id)
     .slice(0, 4)
 

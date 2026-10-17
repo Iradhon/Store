@@ -1,10 +1,17 @@
 import { Link } from 'react-router-dom'
 import { Package, ArrowRight, MapPin } from 'lucide-react'
 import { useOrder } from '../context/useOrder'
+import { useAuth } from '../context/useAuth'
 import './styles/orders.css'
 
 export default function Orders() {
   const { orders } = useOrder()
+  const { user } = useAuth()
+
+  // Display user's orders if logged in, or all saved session orders
+  const displayOrders = user
+    ? orders.filter((o) => !o.userId || o.userId === user.id)
+    : orders
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-US', {
@@ -19,7 +26,7 @@ export default function Orders() {
       year: 'numeric',
     })
 
-  if (orders.length === 0) {
+  if (displayOrders.length === 0) {
     return (
       <div className="orders-page">
         <div className="orders-container">
@@ -48,7 +55,7 @@ export default function Orders() {
           <div>
             <h1 className="orders-title">Order History</h1>
             <p className="orders-subtitle">
-              You have placed {orders.length} {orders.length === 1 ? 'order' : 'orders'}.
+              You have {displayOrders.length} {displayOrders.length === 1 ? 'order' : 'orders'}.
             </p>
           </div>
           <Link to="/products" className="orders-shop-link">
@@ -58,7 +65,7 @@ export default function Orders() {
         </div>
 
         <div className="orders-list">
-          {orders.map((order) => (
+          {displayOrders.map((order) => (
             <article className="order-history-card" key={order.id}>
               <div className="order-history-card__header">
                 <div className="order-header-meta">

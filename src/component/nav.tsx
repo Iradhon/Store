@@ -1,13 +1,25 @@
 import { useState, useEffect } from 'react'
-import { Search, Handbag, Menu, X, Home as HomeIcon, ShoppingBag, User } from 'lucide-react'
+import {
+  Search,
+  Handbag,
+  Menu,
+  X,
+  Home as HomeIcon,
+  ShoppingBag,
+  User,
+  LogOut,
+  Package,
+} from 'lucide-react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useCart } from '../context/useCart'
+import { useAuth } from '../context/useAuth'
 import './styles/nav.css'
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const { totalItemsCount } = useCart()
+  const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -83,9 +95,29 @@ export default function Navbar() {
                 </span>
               )}
             </Link>
-            <Link className="navbar__signin" to="/auth">
-              Sign In
-            </Link>
+
+            {user ? (
+              <div className="navbar__user-menu">
+                <Link to="/orders" className="navbar__user-btn" title="View Orders">
+                  <User size={16} />
+                  <span>{user.fullName || user.email.split('@')[0]}</span>
+                </Link>
+                <button
+                  type="button"
+                  className="navbar__signout-btn"
+                  onClick={() => signOut()}
+                  title="Sign Out"
+                  aria-label="Sign Out"
+                >
+                  <LogOut size={16} />
+                </button>
+              </div>
+            ) : (
+              <Link className="navbar__signin" to="/auth">
+                Sign In
+              </Link>
+            )}
+
             <button
               className="navbar__menu"
               aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
@@ -173,23 +205,45 @@ export default function Navbar() {
             </Link>
             <Link
               className="mobile-drawer__link"
+              to="/orders"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <Package size={18} />
+              <span>Order History</span>
+            </Link>
+            <Link
+              className="mobile-drawer__link"
               to="/auth"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               <User size={18} />
-              <span>Sign In / Account</span>
+              <span>{user ? `Account (${user.email})` : 'Sign In / Account'}</span>
             </Link>
           </nav>
         </div>
 
         <div className="mobile-drawer__footer">
-          <Link
-            className="mobile-drawer__cta"
-            to="/auth"
-            onClick={() => setIsMobileMenuOpen(false)}
-          >
-            Sign In / Register
-          </Link>
+          {user ? (
+            <button
+              type="button"
+              className="mobile-drawer__cta mobile-drawer__cta--danger"
+              onClick={() => {
+                signOut()
+                setIsMobileMenuOpen(false)
+              }}
+            >
+              <LogOut size={16} />
+              <span>Sign Out</span>
+            </button>
+          ) : (
+            <Link
+              className="mobile-drawer__cta"
+              to="/auth"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Sign In / Register
+            </Link>
+          )}
         </div>
       </aside>
     </header>

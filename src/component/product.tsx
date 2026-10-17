@@ -1,14 +1,13 @@
 import { useId, useMemo, useRef, useState, useEffect, type FormEvent, type KeyboardEvent } from 'react'
 import { ArrowRight, ChevronDown, Filter, RotateCcw, Search } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
-import { products } from '../data/products'
+import { products as fallbackProducts } from '../data/products'
+import { getProducts } from '../services/productService'
 import type { Product } from '../types'
 import { useCart } from '../context/useCart'
 import ProductCard from './ProductCard'
 import './styles/product.css'
-
-const categories = [...new Set(products.map((product) => product.category))]
 
 type ProductSort = 'newest' | 'price-ascending' | 'price-descending'
 
@@ -155,12 +154,36 @@ const INITIAL_PAGE_SIZE = 8
 const PAGE_SIZE_INCREMENT = 4
 
 export default function Products() {
-  const [search, setSearch] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialSearchParam = searchParams.get('search') ?? ''
+
+  const [allProducts, setAllProducts] = useState<Product[]>(fallbackProducts)
+  const [search, setSearch] = useState(initialSearchParam)
+  const [prevSearchParam, setPrevSearchParam] = useState(initialSearchParam)
   const [category, setCategory] = useState('')
   const [sort, setSort] = useState<ProductSort>('newest')
   const [visibleCount, setVisibleCount] = useState(INITIAL_PAGE_SIZE)
   const [prevFilterKey, setPrevFilterKey] = useState(`${search}|${category}|${sort}`)
   const [addedNotification, setAddedNotification] = useState<string | null>(null)
+
+  // Fetch from Supabase or fallback
+  useEffect(() => {
+    let isMounted = true
+    getProducts().then((data) => {
+      if (isMounted && data.length > 0) {
+        setAllProducts(data)
+      }
+    })
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  // Sync search state if URL search query changes
+  if (prevSearchParam !== initialSearchParam) {
+    setPrevSearchParam(initialSearchParam)
+    setSearch(initialSearchParam)
+  }
 
   // Reset pagination during render if search/filter changes
   const currentFilterKey = `${search}|${category}|${sort}`
@@ -169,10 +192,15 @@ export default function Products() {
     setVisibleCount(INITIAL_PAGE_SIZE)
   }
 
+  const categories = useMemo(
+    () => [...new Set(allProducts.map((product) => product.category))],
+    [allProducts],
+  )
+
   const filteredProducts = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase()
 
-    return products
+    return allProducts
       .filter((product) => {
         const matchesSearch =
           normalizedSearch.length === 0 ||
@@ -187,12 +215,21 @@ export default function Products() {
         if (sort === 'price-descending') return second.price - first.price
         return Date.parse(second.createdAt) - Date.parse(first.createdAt)
       })
-  }, [search, category, sort])
+  }, [allProducts, search, category, sort])
 
   const { addToCart } = useCart()
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+  }
+
+  function handleClearSearch() {
+    setSearch('')
+    if (searchParams.has('search')) {
+      const next = new URLSearchParams(searchParams)
+      next.delete('search')
+      setSearchParams(next)
+    }
   }
 
   function handleAddToCart(product: Product) {
@@ -244,7 +281,7 @@ export default function Products() {
               <button
                 type="button"
                 className="product-search__clear"
-                onClick={() => setSearch('')}
+                onClick={handleClearSearch}
                 aria-label="Clear search"
               >
                 Clear
@@ -324,7 +361,7 @@ export default function Products() {
                 className="product-empty-state__reset"
                 type="button"
                 onClick={() => {
-                  setSearch('')
+                  handleClearSearch()
                   setCategory('')
                 }}
               >

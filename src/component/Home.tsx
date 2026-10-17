@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ArrowRight, Truck, Shield, ShoppingBag } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { products } from '../data/products'
+import { products as fallbackProducts } from '../data/products'
+import { getProducts } from '../services/productService'
 import type { Product } from '../types'
 import { useCart } from '../context/useCart'
 import ProductCard from './ProductCard'
@@ -10,9 +11,22 @@ import './styles/product.css'
 
 function Home() {
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [allProducts, setAllProducts] = useState<Product[]>(fallbackProducts)
   const { addToCart } = useCart()
 
-  const featuredProducts = products.filter((p) => p.featured).slice(0, 4)
+  useEffect(() => {
+    let isMounted = true
+    getProducts().then((data) => {
+      if (isMounted && data.length > 0) {
+        setAllProducts(data)
+      }
+    })
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const featuredProducts = allProducts.filter((p) => p.featured).slice(0, 4)
 
   function handleAddToCart(product: Product) {
     addToCart(product, 1)

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useCart } from '../context/useCart'
 import { useOrder } from '../context/useOrder'
+import { useAuth } from '../context/useAuth'
 import type { ShippingAddress, ShippingMethod, PaymentMethod } from '../types'
 import './styles/checkout.css'
 
@@ -26,12 +27,13 @@ export default function Checkout() {
   } = useCart()
 
   const { createOrder } = useOrder()
+  const { user } = useAuth()
   const navigate = useNavigate()
 
   // Form State
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
-    fullName: '',
-    email: '',
+    fullName: user?.fullName || '',
+    email: user?.email || '',
     phone: '',
     street: '',
     city: '',
@@ -112,6 +114,7 @@ export default function Checkout() {
     // Simulate payment processing
     setTimeout(() => {
       const order = createOrder({
+        userId: user?.id,
         items: [...items],
         shippingAddress,
         shippingMethod,
