@@ -52,5 +52,6 @@ export interface UserProfile {
   email: string
   fullName?: string
   avatarUrl?: string
+  role?: 'admin' | 'customer'
   createdAt?: string
 }

@@ -101,6 +101,7 @@ export default function Navbar() {
                 <Link to="/orders" className="navbar__user-btn" title="View Orders">
                   <User size={16} />
                   <span>{user.fullName || user.email.split('@')[0]}</span>
+                  {user.role === 'admin' && <span className="navbar__admin-badge">Admin</span>}
                 </Link>
                 <button
                   type="button"
@@ -218,6 +219,7 @@ export default function Navbar() {
             >
               <User size={18} />
               <span>{user ? `Account (${user.email})` : 'Sign In / Account'}</span>
+              {user?.role === 'admin' && <span className="navbar__admin-badge">Admin</span>}
             </Link>
           </nav>
         </div>

@@ -19,18 +19,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   })
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured)
 
+  async function resolveUserProfile(authUser: { id: string; email?: string; user_metadata?: Record<string, any>; created_at?: string }): Promise<UserProfile> {
+    const email = (authUser.email ?? '').trim().toLowerCase()
+    let role: 'admin' | 'customer' = email === 'honoreirad50@gmail.com' ? 'admin' : 'customer'
+    let fullName = authUser.user_metadata?.full_name ?? email.split('@')[0]
+    let avatarUrl: string | undefined
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role, full_name, avatar_url')
+          .eq('id', authUser.id)
+          .maybeSingle()
+
+        if (profile) {
+          if (profile.role) role = profile.role as 'admin' | 'customer'
+          if (profile.full_name) fullName = profile.full_name
+          if (profile.avatar_url) avatarUrl = profile.avatar_url
+        }
+      } catch (e) {
+        console.warn('Failed to load profile role:', e)
+      }
+    }
+
+    return {
+      id: authUser.id,
+      email: authUser.email ?? '',
+      fullName,
+      avatarUrl,
+      role,
+      createdAt: authUser.created_at,
+    }
+  }
+
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return
 
     // 1. Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email ?? '',
-          fullName: session.user.user_metadata?.full_name ?? session.user.email?.split('@')[0],
-          createdAt: session.user.created_at,
-        })
+        const profile = await resolveUserProfile(session.user)
+        setUser(profile)
       } else {
         setUser(null)
       }
@@ -40,14 +70,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 2. Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email ?? '',
-          fullName: session.user.user_metadata?.full_name ?? session.user.email?.split('@')[0],
-          createdAt: session.user.created_at,
-        })
+        const profile = await resolveUserProfile(session.user)
+        setUser(profile)
       } else {
         setUser(null)
       }
@@ -82,12 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { success: false, error: error.message }
         }
         if (data.user) {
-          setUser({
-            id: data.user.id,
-            email: data.user.email ?? '',
-            fullName: data.user.user_metadata?.full_name ?? data.user.email?.split('@')[0],
-            createdAt: data.user.created_at,
-          })
+          const profile = await resolveUserProfile(data.user)
+          setUser(profile)
         }
         return { success: true }
       } catch (err: unknown) {
@@ -97,10 +119,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Local authentication fallback for instant demo/development
     await new Promise((resolve) => setTimeout(resolve, 400))
+    const normalizedEmail = email.trim().toLowerCase()
     const mockUser: UserProfile = {
       id: `usr_${Date.now().toString(36)}`,
-      email: email.trim().toLowerCase(),
+      email: normalizedEmail,
       fullName: email.split('@')[0],
+      role: normalizedEmail === 'honoreirad50@gmail.com' ? 'admin' : 'customer',
       createdAt: new Date().toISOString(),
     }
     setUser(mockUser)
@@ -134,12 +158,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { success: false, error: error.message }
         }
         if (data.user) {
-          setUser({
-            id: data.user.id,
-            email: data.user.email ?? '',
-            fullName: fullName || data.user.email?.split('@')[0],
-            createdAt: data.user.created_at,
-          })
+          const profile = await resolveUserProfile(data.user)
+          setUser(profile)
         }
         return { success: true }
       } catch (err: unknown) {
