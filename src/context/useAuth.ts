@@ -7,6 +7,7 @@ export interface AuthContextType {
   isSupabaseConfigured: boolean
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   signUp: (email: string, password: string, fullName: string) => Promise<{ success: boolean; error?: string }>
+  signInWithGoogle: () => Promise<{ success: boolean; error?: string }>
   signOut: () => Promise<void>
 }
 

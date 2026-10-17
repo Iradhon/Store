@@ -179,6 +179,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { success: true }
   }
 
+  async function signInWithGoogle(): Promise<{ success: boolean; error?: string }> {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: `${window.location.origin}/`,
+          },
+        })
+        if (error) {
+          return { success: false, error: error.message }
+        }
+        return { success: true }
+      } catch (err: unknown) {
+        return { success: false, error: err instanceof Error ? err.message : 'Google sign in failed.' }
+      }
+    }
+
+    // Local authentication fallback for instant demo/development
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    const mockUser: UserProfile = {
+      id: 'usr_google_demo',
+      email: 'honoreirad50@gmail.com',
+      fullName: 'Iradhon (Google User)',
+      role: 'admin',
+      createdAt: new Date().toISOString(),
+    }
+    setUser(mockUser)
+    return { success: true }
+  }
+
   async function signOut(): Promise<void> {
     if (isSupabaseConfigured && supabase) {
       await supabase.auth.signOut()
@@ -194,6 +225,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isSupabaseConfigured,
         signIn,
         signUp,
+        signInWithGoogle,
         signOut,
       }}
     >
