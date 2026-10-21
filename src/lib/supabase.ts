@@ -1,17 +1,30 @@
 import { createClient } from '@supabase/supabase-js'
+import type { Database } from '../types/database'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim()
+const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim()
+
+function isValidSupabaseUrl(value: string | undefined): value is string {
+  if (!value) return false
+
+  try {
+    const parsed = new URL(value)
+    return parsed.protocol === 'https:' || parsed.hostname === 'localhost'
+  } catch {
+    return false
+  }
+}
 
 export const isSupabaseConfigured = Boolean(
-  supabaseUrl &&
-    supabaseAnonKey &&
-    supabaseUrl.startsWith('http') &&
-    !supabaseUrl.includes('placeholder') &&
-    supabaseAnonKey.length > 20,
+  isValidSupabaseUrl(supabaseUrl) && supabasePublishableKey && !supabasePublishableKey.includes('replace-with-'),
 )
 
-// If credentials exist, initialize real Supabase client; otherwise null
 export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl!, supabaseAnonKey!)
+  ? createClient<Database>(supabaseUrl!, supabasePublishableKey!, {
+      auth: {
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        persistSession: true,
+      },
+    })
   : null

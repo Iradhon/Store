@@ -1,67 +1,36 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
-import { products as localProducts } from '../data/products'
 import type { Product } from '../types'
+import type { Database } from '../types/database'
+import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
-export async function getProducts(): Promise<Product[]> {
-  if (isSupabaseConfigured && supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('created_at', { ascending: false })
+type ProductRow = Database['public']['Tables']['products']['Row']
 
-      if (!error && data && data.length > 0) {
-        return data.map((item) => ({
-          id: item.id,
-          name: item.name,
-          category: item.category,
-          price: Number(item.price),
-          description: item.description,
-          image: item.image,
-          rating: item.rating ? Number(item.rating) : 4.8,
-          reviewsCount: item.reviews_count ? Number(item.reviews_count) : 0,
-          inStock: item.in_stock ?? true,
-          featured: item.featured ?? false,
-          createdAt: item.created_at,
-        }))
-      }
-    } catch (err) {
-      console.warn('Supabase fetch products error, using local fallback:', err)
-    }
+export function mapProduct(row: ProductRow): Product {
+  return {
+    id: row.id,
+    slug: row.slug,
+    sku: row.sku,
+    name: row.name,
+    category: row.category,
+    priceMinor: Number(row.price_minor),
+    currency: row.currency,
+    description: row.description,
+    imageUrl: row.image_url,
+    inventoryQuantity: row.inventory_quantity,
+    isPublished: row.is_published,
+    featured: row.featured,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   }
-
-  // Fallback to local data
-  return localProducts
 }
 
-export async function getProductById(id: string): Promise<Product | undefined> {
-  if (isSupabaseConfigured && supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', id)
-        .single()
+export async function getPublishedProducts(): Promise<Product[]> {
+  if (!isSupabaseConfigured || !supabase) throw new Error('The product catalog is not configured.')
 
-      if (!error && data) {
-        return {
-          id: data.id,
-          name: data.name,
-          category: data.category,
-          price: Number(data.price),
-          description: data.description,
-          image: data.image,
-          rating: data.rating ? Number(data.rating) : 4.8,
-          reviewsCount: data.reviews_count ? Number(data.reviews_count) : 0,
-          inStock: data.in_stock ?? true,
-          featured: data.featured ?? false,
-          createdAt: data.created_at,
-        }
-      }
-    } catch (err) {
-      console.warn('Supabase fetch product by id error, using local fallback:', err)
-    }
-  }
-
-  return localProducts.find((p) => p.id === id)
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('is_published', true)
+    .order('created_at', { ascending: false })
+  if (error) throw new Error('The product catalog could not be loaded.')
+  return (data ?? []).map(mapProduct)
 }

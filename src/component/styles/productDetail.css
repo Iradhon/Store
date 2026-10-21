@@ -117,31 +117,6 @@
   letter-spacing: -0.03em;
 }
 
-/* Rating Row */
-.product-detail__rating-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-  font-size: 0.875rem;
-}
-
-.product-detail__stars {
-  display: flex;
-  align-items: center;
-  gap: 0.125rem;
-  color: #f59e0b;
-}
-
-.product-detail__rating-score {
-  font-weight: 600;
-  color: #171717;
-}
-
-.product-detail__rating-count {
-  color: #737373;
-}
-
 /* Price & Stock Row */
 .product-detail__price-row {
   display: flex;

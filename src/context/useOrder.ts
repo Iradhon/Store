@@ -3,7 +3,9 @@ import type { Order } from '../types'
 
 export interface OrderContextType {
   orders: Order[]
-  createOrder: (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>) => Order
+  isLoading: boolean
+  error: string | null
+  refresh: () => Promise<void>
   getOrder: (orderId: string) => Order | undefined
 }
 

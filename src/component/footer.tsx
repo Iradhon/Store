@@ -12,7 +12,7 @@ export default function Footer() {
             <Link className="site-footer__logo" to="/">
               STORE
             </Link>
-            <p>Quality products, delivered with care.</p>
+            <p>Browse the current catalog and manage your account.</p>
           </div>
 
           <nav className="site-footer__section" aria-label="Shop">

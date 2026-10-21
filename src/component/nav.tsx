@@ -9,6 +9,7 @@ import {
   User,
   LogOut,
   Package,
+  Settings,
 } from 'lucide-react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useCart } from '../context/useCart'
@@ -70,6 +71,9 @@ export default function Navbar() {
             <Link className="navbar__link" to="/products">
               All Products
             </Link>
+            {user?.role === 'admin' && (
+              <Link className="navbar__link" to="/admin/products">Manage Catalog</Link>
+            )}
           </nav>
 
           <form role="search" className="navbar__search" onSubmit={handleSearch}>
@@ -212,6 +216,12 @@ export default function Navbar() {
               <Package size={18} />
               <span>Order History</span>
             </Link>
+            {user?.role === 'admin' && (
+              <Link className="mobile-drawer__link" to="/admin/products" onClick={() => setIsMobileMenuOpen(false)}>
+                <Settings size={18} />
+                <span>Manage Catalog</span>
+              </Link>
+            )}
             <Link
               className="mobile-drawer__link"
               to="/auth"

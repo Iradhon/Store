@@ -1,130 +1,131 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { CartItem, Product } from '../types'
 import { CartContext } from './useCart'
+import { useCatalog } from './useCatalog'
 
-const CART_STORAGE_KEY = 'store_cart_v1'
+const CART_STORAGE_KEY = 'store_cart_v2'
 
-const VALID_PROMOS: Record<string, number> = {
-  SAVE10: 0.1, // 10% discount
-  STORE20: 0.2, // 20% discount
-  WELCOME: 15, // $15 flat discount
+function readCart(): CartItem[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) ?? '[]')
+    if (!Array.isArray(parsed)) return []
+
+    return parsed.filter((item): item is CartItem =>
+      typeof item === 'object' && item !== null &&
+      'product' in item && typeof item.product === 'object' && item.product !== null &&
+      'id' in item.product && typeof item.product.id === 'string' &&
+      'priceMinor' in item.product && typeof item.product.priceMinor === 'number' &&
+      'quantity' in item && Number.isInteger(item.quantity) && item.quantity > 0 && item.quantity <= 99,
+    )
+  } catch {
+    return []
+  }
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>(() => {
-    try {
-      const stored = localStorage.getItem(CART_STORAGE_KEY)
-      return stored ? JSON.parse(stored) : []
-    } catch {
-      return []
+  const { products, isLoading: isCatalogLoading, error: catalogError } = useCatalog()
+  const [items, setItems] = useState<CartItem[]>(readCart)
+  const [cartNotice, setCartNotice] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (isCatalogLoading || catalogError) return
+
+    const currentProducts = new Map(products.map((product) => [product.id, product]))
+    const nextItems: CartItem[] = []
+    let removedCount = 0
+    let changed = false
+
+    for (const item of items) {
+      const currentProduct = currentProducts.get(item.product.id)
+      const quantity = currentProduct ? Math.min(item.quantity, currentProduct.inventoryQuantity, 99) : 0
+      if (!currentProduct || quantity <= 0) {
+        removedCount += 1
+        changed = true
+        continue
+      }
+      if (item.product.updatedAt !== currentProduct.updatedAt || quantity !== item.quantity) changed = true
+      nextItems.push({ product: currentProduct, quantity })
     }
-  })
 
-  const [appliedPromoCode, setAppliedPromoCode] = useState<string | null>(null)
+    if (changed) {
+      // oxlint-disable-next-line react/set-state-in-effect -- Reconcile persisted cart snapshots after loading the authoritative catalog.
+      setItems(nextItems)
+      if (removedCount > 0) setCartNotice(`${removedCount} unavailable cart ${removedCount === 1 ? 'item was' : 'items were'} removed.`)
+    }
+  }, [catalogError, isCatalogLoading, items, products])
 
-  // Persist cart to localStorage whenever items change
   useEffect(() => {
     try {
       localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items))
-    } catch (e) {
-      console.error('Failed to persist cart:', e)
+    } catch {
+      // Cart state remains usable for the current page session when storage is unavailable.
     }
   }, [items])
 
   function addToCart(product: Product, quantity = 1) {
-    if (quantity <= 0) return
+    if (!Number.isInteger(quantity) || quantity <= 0 || product.inventoryQuantity <= 0) return
 
-    setItems((prevItems) => {
-      const existingIndex = prevItems.findIndex((item) => item.product.id === product.id)
+    setItems((previousItems) => {
+      const existingIndex = previousItems.findIndex((item) => item.product.id === product.id)
+      const maxQuantity = Math.min(99, product.inventoryQuantity)
 
-      if (existingIndex > -1) {
-        const updated = [...prevItems]
+      if (existingIndex >= 0) {
+        const updated = [...previousItems]
+        const oldItem = updated[existingIndex]
         updated[existingIndex] = {
-          ...updated[existingIndex],
-          quantity: updated[existingIndex].quantity + quantity,
+          product,
+          quantity: Math.min(oldItem.quantity + quantity, maxQuantity),
         }
         return updated
       }
 
-      return [...prevItems, { product, quantity }]
+      return [...previousItems, { product, quantity: Math.min(quantity, maxQuantity) }]
     })
   }
 
   function removeFromCart(productId: string) {
-    setItems((prevItems) => prevItems.filter((item) => item.product.id !== productId))
+    setItems((current) => current.filter((item) => item.product.id !== productId))
   }
 
   function updateQuantity(productId: string, quantity: number) {
-    if (quantity <= 0) {
+    if (!Number.isInteger(quantity) || quantity <= 0) {
       removeFromCart(productId)
       return
     }
 
-    setItems((prevItems) =>
-      prevItems.map((item) =>
-        item.product.id === productId ? { ...item, quantity: Math.min(quantity, 99) } : item,
-      ),
-    )
+    setItems((current) => current.flatMap((item) => {
+      if (item.product.id !== productId) return [item]
+      const maxQuantity = Math.min(99, item.product.inventoryQuantity)
+      return maxQuantity === 0 ? [] : [{ ...item, quantity: Math.min(quantity, maxQuantity) }]
+    }))
   }
 
   function clearCart() {
     setItems([])
-    setAppliedPromoCode(null)
+    setCartNotice(null)
   }
 
-  function applyPromoCode(code: string) {
-    const trimmed = code.trim().toUpperCase()
-    if (!trimmed) {
-      return { success: false, message: 'Please enter a promo code.' }
-    }
-
-    if (VALID_PROMOS[trimmed] !== undefined) {
-      setAppliedPromoCode(trimmed)
-      return { success: true, message: `Promo code "${trimmed}" applied!` }
-    }
-
-    return { success: false, message: 'Invalid promo code. Try "SAVE10" or "STORE20".' }
-  }
-
-  function removePromoCode() {
-    setAppliedPromoCode(null)
-  }
-
-  // Calculated totals
-  const totalItemsCount = items.reduce((sum, item) => sum + item.quantity, 0)
-  const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
-
-  // Free shipping on orders over $50, else $10 flat (if cart has items)
-  const shippingCost = items.length === 0 ? 0 : subtotal >= 50 ? 0 : 10
-
-  // Calculate discount
-  let discountAmount = 0
-  if (appliedPromoCode && VALID_PROMOS[appliedPromoCode]) {
-    const promoVal = VALID_PROMOS[appliedPromoCode]
-    discountAmount = promoVal < 1 ? subtotal * promoVal : Math.min(subtotal, promoVal)
-  }
-
-  const taxableAmount = Math.max(0, subtotal - discountAmount)
-  const estimatedTax = items.length === 0 ? 0 : taxableAmount * 0.08 // 8% sales tax
-  const orderTotal = Math.max(0, taxableAmount + shippingCost + estimatedTax)
+  const totalItemsCount = items.reduce((total, item) => total + item.quantity, 0)
+  const subtotalMinorByCurrency = items.reduce<Record<string, number>>((totals, item) => {
+    totals[item.product.currency] = (totals[item.product.currency] ?? 0) + item.product.priceMinor * item.quantity
+    return totals
+  }, {})
+  const clearCartNotice = () => setCartNotice(null)
 
   return (
     <CartContext.Provider
       value={{
         items,
         totalItemsCount,
-        subtotal,
-        shippingCost,
-        estimatedTax,
-        orderTotal,
-        discountAmount,
-        appliedPromoCode,
+        subtotalMinorByCurrency,
+        isCatalogLoading,
+        catalogError,
+        cartNotice,
+        clearCartNotice,
         addToCart,
         removeFromCart,
         updateQuantity,
         clearCart,
-        applyPromoCode,
-        removePromoCode,
       }}
     >
       {children}

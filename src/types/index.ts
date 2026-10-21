@@ -1,15 +1,18 @@
 export interface Product {
   id: string
+  slug: string
+  sku: string | null
   name: string
   category: string
-  price: number
+  priceMinor: number
+  currency: string
   description: string
-  image: string
-  rating?: number
-  reviewsCount?: number
-  inStock?: boolean
-  featured?: boolean
+  imageUrl: string | null
+  inventoryQuantity: number
+  isPublished: boolean
+  featured: boolean
   createdAt: string
+  updatedAt: string
 }
 
 export interface CartItem {
@@ -28,23 +31,35 @@ export interface ShippingAddress {
   country: string
 }
 
-export type ShippingMethod = 'standard' | 'express'
-export type PaymentMethod = 'card' | 'paypal'
+export type PaymentStatus = 'not_configured' | 'pending' | 'authorized' | 'paid' | 'failed' | 'cancelled' | 'refunded'
+export type FulfillmentStatus = 'unfulfilled' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
+
+export interface OrderItem {
+  id: string
+  productId: string | null
+  productName: string
+  productSku: string | null
+  productImageUrl: string | null
+  quantity: number
+  unitPriceMinor: number
+  currency: string
+}
 
 export interface Order {
   id: string
-  userId?: string
+  userId: string
   createdAt: string
-  items: CartItem[]
+  items: OrderItem[]
   shippingAddress: ShippingAddress
-  shippingMethod: ShippingMethod
-  paymentMethod: PaymentMethod
-  subtotal: number
-  shippingCost: number
-  discountAmount: number
-  tax: number
-  total: number
-  status: 'processing' | 'shipped' | 'delivered'
+  shippingMethod: string | null
+  currency: string
+  subtotalMinor: number
+  shippingMinor: number
+  discountMinor: number
+  taxMinor: number
+  totalMinor: number
+  paymentStatus: PaymentStatus
+  fulfillmentStatus: FulfillmentStatus
 }
 
 export interface UserProfile {

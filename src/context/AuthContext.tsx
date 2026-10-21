@@ -1,220 +1,118 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import type { Session } from '@supabase/supabase-js'
 import type { UserProfile } from '../types'
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { AuthContext } from './useAuth'
 
-const LOCAL_STORAGE_USER_KEY = 'store_auth_user_v1'
+function toProfile(session: Session): UserProfile {
+  const authUser = session.user
+  const metadata = authUser.user_metadata ?? {}
+
+  return {
+    id: authUser.id,
+    email: authUser.email ?? '',
+    fullName: typeof metadata.full_name === 'string' ? metadata.full_name : undefined,
+    avatarUrl: typeof metadata.avatar_url === 'string' ? metadata.avatar_url : undefined,
+    role: 'customer',
+    createdAt: authUser.created_at,
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(() => {
-    if (!isSupabaseConfigured) {
-      try {
-        const stored = localStorage.getItem(LOCAL_STORAGE_USER_KEY)
-        return stored ? JSON.parse(stored) : null
-      } catch {
-        return null
-      }
-    }
-    return null
-  })
+  const [user, setUser] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(isSupabaseConfigured)
 
-  async function resolveUserProfile(authUser: { id: string; email?: string; user_metadata?: Record<string, any>; created_at?: string }): Promise<UserProfile> {
-    const email = (authUser.email ?? '').trim().toLowerCase()
-    let role: 'admin' | 'customer' = email === 'honoreirad50@gmail.com' ? 'admin' : 'customer'
-    let fullName = authUser.user_metadata?.full_name ?? email.split('@')[0]
-    let avatarUrl: string | undefined
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role, full_name, avatar_url')
-          .eq('id', authUser.id)
-          .maybeSingle()
-
-        if (profile) {
-          if (profile.role) role = profile.role as 'admin' | 'customer'
-          if (profile.full_name) fullName = profile.full_name
-          if (profile.avatar_url) avatarUrl = profile.avatar_url
-        }
-      } catch (e) {
-        console.warn('Failed to load profile role:', e)
-      }
-    }
-
-    return {
-      id: authUser.id,
-      email: authUser.email ?? '',
-      fullName,
-      avatarUrl,
-      role,
-      createdAt: authUser.created_at,
-    }
-  }
-
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) return
+    if (!supabase) return
 
-    // 1. Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        const profile = await resolveUserProfile(session.user)
-        setUser(profile)
-      } else {
-        setUser(null)
-      }
+    let active = true
+    let receivedAuthEvent = false
+
+    const refreshProfile = (userId: string) => {
+      window.setTimeout(() => {
+        void supabase
+          ?.from('profiles')
+          .select('display_name, avatar_url, role')
+          .eq('id', userId)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (!active || !data) return
+            setUser((current) => current?.id === userId
+              ? {
+                  ...current,
+                  fullName: data.display_name ?? current.fullName,
+                  avatarUrl: data.avatar_url ?? current.avatarUrl,
+                  role: data.role,
+                }
+              : current)
+          })
+      }, 0)
+    }
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      receivedAuthEvent = true
+      setUser(session ? toProfile(session) : null)
       setIsLoading(false)
+      if (session) refreshProfile(session.user.id)
     })
 
-    // 2. Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        const profile = await resolveUserProfile(session.user)
-        setUser(profile)
-      } else {
-        setUser(null)
-      }
+    void supabase.auth.getSession().then(({ data, error }) => {
+      if (!active || receivedAuthEvent) return
+      setUser(data.session ? toProfile(data.session) : null)
       setIsLoading(false)
+      if (data.session) refreshProfile(data.session.user.id)
+      if (error) console.error('Could not restore the account session.')
     })
 
     return () => {
-      subscription.unsubscribe()
+      active = false
+      authListener.subscription.unsubscribe()
     }
   }, [])
 
-  // Persist local user if not using Supabase
-  useEffect(() => {
-    if (!isSupabaseConfigured) {
-      if (user) {
-        localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(user))
-      } else {
-        localStorage.removeItem(LOCAL_STORAGE_USER_KEY)
-      }
-    }
-  }, [user])
-
   async function signIn(email: string, password: string): Promise<{ success: boolean; error?: string }> {
-    if (!email || !password) {
-      return { success: false, error: 'Email and password are required.' }
-    }
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) {
-          return { success: false, error: error.message }
-        }
-        if (data.user) {
-          const profile = await resolveUserProfile(data.user)
-          setUser(profile)
-        }
-        return { success: true }
-      } catch (err: unknown) {
-        return { success: false, error: err instanceof Error ? err.message : 'Sign in failed.' }
-      }
-    }
-
-    // Local authentication fallback for instant demo/development
-    await new Promise((resolve) => setTimeout(resolve, 400))
-    const normalizedEmail = email.trim().toLowerCase()
-    const mockUser: UserProfile = {
-      id: `usr_${Date.now().toString(36)}`,
-      email: normalizedEmail,
-      fullName: email.split('@')[0],
-      role: normalizedEmail === 'honoreirad50@gmail.com' ? 'admin' : 'customer',
-      createdAt: new Date().toISOString(),
-    }
-    setUser(mockUser)
-    return { success: true }
+    if (!supabase) return { success: false, error: 'Account access is not configured yet.' }
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+    return error ? { success: false, error: error.message } : { success: true }
   }
 
   async function signUp(
     email: string,
     password: string,
     fullName: string,
-  ): Promise<{ success: boolean; error?: string }> {
-    if (!email || !password) {
-      return { success: false, error: 'Email and password are required.' }
-    }
-    if (password.length < 6) {
-      return { success: false, error: 'Password must be at least 6 characters.' }
-    }
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: fullName,
-            },
-          },
-        })
-        if (error) {
-          return { success: false, error: error.message }
-        }
-        if (data.user) {
-          const profile = await resolveUserProfile(data.user)
-          setUser(profile)
-        }
-        return { success: true }
-      } catch (err: unknown) {
-        return { success: false, error: err instanceof Error ? err.message : 'Sign up failed.' }
-      }
-    }
-
-    // Local authentication fallback
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    const mockUser: UserProfile = {
-      id: `usr_${Date.now().toString(36)}`,
-      email: email.trim().toLowerCase(),
-      fullName: fullName || email.split('@')[0],
-      createdAt: new Date().toISOString(),
-    }
-    setUser(mockUser)
-    return { success: true }
+  ): Promise<{ success: boolean; error?: string; needsEmailConfirmation?: boolean }> {
+    if (!supabase) return { success: false, error: 'Account access is not configured yet.' }
+    if (password.length < 8) return { success: false, error: 'Password must be at least 8 characters.' }
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: { full_name: fullName.trim() },
+        emailRedirectTo: `${window.location.origin}/auth`,
+      },
+    })
+    if (error) return { success: false, error: error.message }
+    return { success: true, needsEmailConfirmation: !data.session }
   }
 
-  async function signInWithGoogle(): Promise<{ success: boolean; error?: string }> {
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: `${window.location.origin}/`,
-          },
-        })
-        if (error) {
-          return { success: false, error: error.message }
-        }
-        return { success: true }
-      } catch (err: unknown) {
-        return { success: false, error: err instanceof Error ? err.message : 'Google sign in failed.' }
-      }
-    }
+  async function requestPasswordReset(email: string): Promise<{ success: boolean; error?: string }> {
+    if (!supabase) return { success: false, error: 'Account access is not configured yet.' }
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/auth?reset=1`,
+    })
+    return error ? { success: false, error: error.message } : { success: true }
+  }
 
-    // Local authentication fallback for instant demo/development
-    await new Promise((resolve) => setTimeout(resolve, 400))
-    const mockUser: UserProfile = {
-      id: 'usr_google_demo',
-      email: 'honoreirad50@gmail.com',
-      fullName: 'Iradhon (Google User)',
-      role: 'admin',
-      createdAt: new Date().toISOString(),
-    }
-    setUser(mockUser)
-    return { success: true }
+  async function updatePassword(password: string): Promise<{ success: boolean; error?: string }> {
+    if (!supabase) return { success: false, error: 'Account access is not configured yet.' }
+    const { error } = await supabase.auth.updateUser({ password })
+    return error ? { success: false, error: error.message } : { success: true }
   }
 
   async function signOut(): Promise<void> {
-    if (isSupabaseConfigured && supabase) {
-      await supabase.auth.signOut()
-    }
-    setUser(null)
+    if (!supabase) return
+    const { error } = await supabase.auth.signOut()
+    if (error) throw new Error(error.message)
   }
 
   return (
@@ -222,10 +120,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isLoading,
-        isSupabaseConfigured,
+        isConfigured: isSupabaseConfigured,
         signIn,
         signUp,
-        signInWithGoogle,
+        requestPasswordReset,
+        updatePassword,
         signOut,
       }}
     >
