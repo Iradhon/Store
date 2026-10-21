@@ -1,35 +1,55 @@
-# React + TypeScript + Vite
+# Storefront
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A React and TypeScript storefront backed by Supabase Auth and Postgres. The catalog contains no seeded or fallback products; publish the store's actual product records before opening the site to customers.
 
-Currently, two official plugins are available:
+## Current behavior
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Email/password sign-up, sign-in, sign-out, and password reset use Supabase Auth.
+- Published products load from Postgres. Admins manage products at `/admin/products`.
+- Profiles and order history are scoped to the signed-in account by Postgres row-level security.
+- The database has order and line-item tables, but client-side order creation is intentionally disabled.
+- Checkout is closed until the owner chooses a payment provider, launch market, currency, tax rules, and delivery rules. No payment or order is created by the current checkout page.
 
-## React Compiler
+## Configure Supabase
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+1. Use the Supabase project referenced in `supabase/config.toml`, or update that project reference if the project changes.
+2. Copy `.env.example` to `.env` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` from the project's Connect dialog. A publishable key is intended for browser use; never put a Supabase secret or service-role key in a `VITE_*` variable.
+3. Apply the migration with the Supabase CLI:
 
-Note: This will impact Vite dev & build performances.
-You can also try [the experimental native React Compiler support in plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md#rust-react-compiler) by using `compiler: true` in the plugin options instead of using the Babel plugin.
+   ```powershell
+   npx supabase login
+   npx supabase link --project-ref tavjsipzqnlxcmxdivuu
+   npx supabase migration list
+   npx supabase db push
+   ```
 
-## Expanding the Oxlint configuration
+   Review the remote migration history before pushing. This repository replaces the earlier migration files; if the linked project reports applied versions that are missing locally, stop and reconcile the history deliberately. Do not reset the project or mark old migrations applied without checking the live schema and data.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+4. In Supabase Auth URL Configuration, set the deployed site URL and the allowed redirect URLs. Configure a production email sender before enabling account registration and password recovery for customers.
+5. Create and verify the first operator account. In the SQL Editor, promote only that account using its auth user ID:
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+   ```sql
+   update public.profiles
+   set role = 'admin'
+   where id = '<auth-user-uuid>';
+   ```
+
+   Role changes are not available through the browser. Database policies remain the authority for product writes.
+6. Sign in with that account and use `/admin/products` to add genuine product descriptions, images, inventory, prices, and ISO currency codes. Products are drafts until published.
+
+## Local development
+
+```powershell
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+If Supabase environment variables are missing, account access and the live catalog report that they are unavailable. The app does not fall back to mock accounts or sample products.
+
+## Production work still required
+
+- Choose the payment provider and implement its server-side checkout session, verified webhook, idempotency, refunds, and payment-state transitions. The database intentionally grants no client insert or update access to orders.
+- Confirm supported countries, store currency, tax calculation, shipping prices and coverage, returns, privacy terms, and fulfillment ownership. Do not treat the cart subtotal as a final order total.
+- Add inventory reservation and server-side price validation when checkout is implemented.
+- Configure and test production email delivery, auth redirect URLs, backups, monitoring, deployment, and rollback procedures.
+- Review the migration and row-level security policies in the target Supabase project before applying them to any database that already contains production data.

@@ -4,9 +4,11 @@ import type { UserProfile } from '../types'
 export interface AuthContextType {
   user: UserProfile | null
   isLoading: boolean
-  isSupabaseConfigured: boolean
+  isConfigured: boolean
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
-  signUp: (email: string, password: string, fullName: string) => Promise<{ success: boolean; error?: string }>
+  signUp: (email: string, password: string, fullName: string) => Promise<{ success: boolean; error?: string; needsEmailConfirmation?: boolean }>
+  requestPasswordReset: (email: string) => Promise<{ success: boolean; error?: string }>
+  updatePassword: (password: string) => Promise<{ success: boolean; error?: string }>
   signOut: () => Promise<void>
 }
 

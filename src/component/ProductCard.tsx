@@ -1,6 +1,7 @@
 import { ShoppingCart } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { Product } from '../types'
+import { formatMoney } from '../lib/money'
 
 interface ProductCardProps {
   product: Product
@@ -16,10 +17,7 @@ export default function ProductCard({ product, onAddToCart }: ProductCardProps) 
     }
   }
 
-  const formattedPrice = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(product.price)
+  const formattedPrice = formatMoney(product.priceMinor, product.currency)
 
   return (
     <article className="product-card">
@@ -31,7 +29,7 @@ export default function ProductCard({ product, onAddToCart }: ProductCardProps) 
         <div className="product-card__image-wrap">
           <img
             className="product-card__image"
-            src={product.image}
+            src={product.imageUrl ?? '/product-placeholder.svg'}
             alt={product.name}
             loading="lazy"
           />
@@ -53,6 +51,7 @@ export default function ProductCard({ product, onAddToCart }: ProductCardProps) 
             className="product-card__cart-btn"
             aria-label={`Add ${product.name} to cart`}
             onClick={handleCartClick}
+            disabled={product.inventoryQuantity <= 0}
           >
             <ShoppingCart size={18} strokeWidth={2} />
           </button>

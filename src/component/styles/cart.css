@@ -346,99 +346,6 @@
   color: #171717;
 }
 
-/* Promo Code */
-.cart-promo {
-  margin-bottom: 1.5rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid #f4f4f5;
-}
-
-.cart-promo__form {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.cart-promo__input {
-  flex: 1;
-  height: 2.5rem;
-  padding: 0 0.875rem;
-  border: 1px solid #e5e5e5;
-  border-radius: 0.375rem;
-  font: inherit;
-  font-size: 0.875rem;
-  color: #171717;
-}
-
-.cart-promo__input:focus {
-  outline: 2px solid #171717;
-  outline-offset: 1px;
-}
-
-.cart-promo__btn {
-  padding: 0 1rem;
-  height: 2.5rem;
-  border: 0;
-  border-radius: 0.375rem;
-  background-color: #f4f4f5;
-  color: #171717;
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.cart-promo__btn:hover {
-  background-color: #e4e4e7;
-}
-
-.cart-promo__applied {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.625rem 0.875rem;
-  border-radius: 0.375rem;
-  background-color: #ecfdf5;
-  color: #059669;
-  font-size: 0.8125rem;
-}
-
-.cart-promo__tag {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.cart-promo__remove {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border: 0;
-  background: transparent;
-  color: #059669;
-  cursor: pointer;
-  border-radius: 0.25rem;
-}
-
-.cart-promo__remove:hover {
-  background-color: #d1fae5;
-}
-
-.cart-promo__msg {
-  margin: 0.5rem 0 0;
-  font-size: 0.8125rem;
-}
-
-.cart-promo__msg--success {
-  color: #059669;
-}
-
-.cart-promo__msg--error {
-  color: #dc2626;
-}
-
 /* Price Breakdown */
 .cart-breakdown {
   display: flex;
@@ -453,22 +360,6 @@
   justify-content: space-between;
   font-size: 0.9375rem;
   color: #525252;
-}
-
-.cart-breakdown__row--discount {
-  color: #059669;
-  font-weight: 500;
-}
-
-.cart-shipping-free {
-  font-weight: 600;
-  color: #059669;
-}
-
-.cart-shipping-hint {
-  margin: -0.25rem 0 0;
-  font-size: 0.75rem;
-  color: #d97706;
 }
 
 .cart-breakdown__divider {

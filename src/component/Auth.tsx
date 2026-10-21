@@ -10,13 +10,12 @@ import {
   ShieldCheck,
   CheckCircle2,
   AlertCircle,
-  Database,
 } from 'lucide-react'
 import { useAuth } from '../context/useAuth'
 import './styles/auth.css'
 
 export default function Auth() {
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
@@ -25,12 +24,32 @@ export default function Auth() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const { user, signIn, signUp, signOut, isSupabaseConfigured } = useAuth()
+  const { user, isLoading: isAuthLoading, isConfigured, signIn, signUp, requestPasswordReset, updatePassword, signOut } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
   // Find redirect destination or default to home
   const from = (location.state as { from?: string })?.from || '/'
+
+  const isPasswordRecovery = new URLSearchParams(location.search).get('reset') === '1' && Boolean(user)
+
+  async function handlePasswordReset() {
+    if (!email.trim()) {
+      setErrorMessage('Enter your email address first.')
+      return
+    }
+
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    setIsSubmitting(true)
+    const result = await requestPasswordReset(email)
+    setIsSubmitting(false)
+    if (!result.success) {
+      setErrorMessage(result.error || 'Could not send the password reset email.')
+      return
+    }
+    setSuccessMessage('If an account exists for that address, a password reset email has been sent.')
+  }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -39,7 +58,23 @@ export default function Auth() {
     setIsSubmitting(true)
 
     try {
-      if (mode === 'signin') {
+      if (isPasswordRecovery) {
+        if (password.length < 8) {
+          setErrorMessage('Your new password must be at least 8 characters.')
+          setIsSubmitting(false)
+          return
+        }
+        const result = await updatePassword(password)
+        if (!result.success) {
+          setErrorMessage(result.error || 'Failed to update your password.')
+          setIsSubmitting(false)
+        } else {
+          await signOut()
+          navigate('/auth', { replace: true })
+        }
+      } else if (mode === 'reset') {
+        await handlePasswordReset()
+      } else if (mode === 'signin') {
         const result = await signIn(email, password)
         if (!result.success) {
           setErrorMessage(result.error || 'Failed to sign in. Please verify your credentials.')
@@ -55,6 +90,9 @@ export default function Auth() {
         if (!result.success) {
           setErrorMessage(result.error || 'Failed to create account. Please try again.')
           setIsSubmitting(false)
+        } else if (result.needsEmailConfirmation) {
+          setSuccessMessage('Check your email to confirm your account before signing in.')
+          setIsSubmitting(false)
         } else {
           setSuccessMessage('Account created successfully! Redirecting...')
           setTimeout(() => {
@@ -68,7 +106,11 @@ export default function Auth() {
     }
   }
 
-  if (user) {
+  if (isAuthLoading) {
+    return <div className="auth-page" role="status">Loading account…</div>
+  }
+
+  if (user && !isPasswordRecovery) {
     return (
       <div className="auth-page">
         <div className="auth-card auth-card--signed-in">
@@ -100,17 +142,15 @@ export default function Auth() {
   return (
     <div className="auth-page">
       <div className="auth-container">
-        {/* Backend status pill */}
+        {/* Account service status */}
         <div className="auth-status-pill">
-          <Database size={14} />
-          <span>
-            {isSupabaseConfigured ? 'Supabase Auth & Database Connected' : 'Local Auth Mode (Add .env to connect Supabase)'}
-          </span>
+          <UserIcon size={14} />
+          <span>{isConfigured ? 'Account access active' : 'Account access unavailable'}</span>
         </div>
 
         <div className="auth-card">
           {/* Tabs */}
-          <div className="auth-tabs" role="tablist">
+          {!isPasswordRecovery && mode !== 'reset' && <div className="auth-tabs" role="tablist">
             <button
               type="button"
               role="tab"
@@ -137,20 +177,37 @@ export default function Auth() {
             >
               Create Account
             </button>
-          </div>
+          </div>}
+
+          {mode === 'reset' && !isPasswordRecovery && (
+            <button type="button" className="auth-forgot-link" onClick={() => setMode('signin')}>
+              Return to sign in
+            </button>
+          )}
 
           <div className="auth-header">
             <h1 className="auth-title">
-              {mode === 'signin' ? 'Welcome Back' : 'Create an Account'}
+              {isPasswordRecovery ? 'Choose a New Password' : mode === 'signin' ? 'Welcome Back' : mode === 'reset' ? 'Reset Your Password' : 'Create an Account'}
             </h1>
             <p className="auth-subtitle">
-              {mode === 'signin'
+              {isPasswordRecovery
+                ? 'Enter a new password for your account.'
+                : mode === 'reset'
+                  ? 'Enter your account email and we will send a password reset link.'
+                  : mode === 'signin'
                 ? 'Enter your credentials to access your account and orders.'
-                : 'Join our community for faster checkout, order tracking, and exclusive offers.'}
+                : 'Create an account to manage your profile and future orders.'}
             </p>
           </div>
 
           {/* Feedback messages */}
+          {!isConfigured && (
+            <div className="auth-alert auth-alert--error" role="alert">
+              <AlertCircle size={18} />
+              <span>Set the Supabase project URL and publishable key in the environment to enable account access.</span>
+            </div>
+          )}
+
           {errorMessage && (
             <div className="auth-alert auth-alert--error" role="alert">
               <AlertCircle size={18} />
@@ -166,7 +223,7 @@ export default function Auth() {
           )}
 
           <form className="auth-form" onSubmit={handleSubmit}>
-            {mode === 'signup' && (
+            {mode === 'signup' && !isPasswordRecovery && (
               <div className="auth-field">
                 <label htmlFor="auth-fullName">Full Name</label>
                 <div className="auth-input-wrap">
@@ -184,7 +241,7 @@ export default function Auth() {
               </div>
             )}
 
-            <div className="auth-field">
+            {!isPasswordRecovery && <div className="auth-field">
               <label htmlFor="auth-email">Email Address</label>
               <div className="auth-input-wrap">
                 <Mail className="auth-input-icon" size={18} />
@@ -198,16 +255,20 @@ export default function Auth() {
                   autoComplete="email"
                 />
               </div>
-            </div>
+            </div>}
 
-            <div className="auth-field">
+            {(mode !== 'reset' || isPasswordRecovery) && <div className="auth-field">
               <div className="auth-field__header">
-                <label htmlFor="auth-password">Password</label>
-                {mode === 'signin' && (
+                <label htmlFor="auth-password">{isPasswordRecovery ? 'New Password' : 'Password'}</label>
+                {mode === 'signin' && !isPasswordRecovery && (
                   <button
                     type="button"
                     className="auth-forgot-link"
-                    onClick={() => alert('Password reset link has been dispatched to your email address.')}
+                    onClick={() => {
+                      setMode('reset')
+                      setErrorMessage(null)
+                      setSuccessMessage(null)
+                    }}
                   >
                     Forgot password?
                   </button>
@@ -219,10 +280,11 @@ export default function Auth() {
                   id="auth-password"
                   type={showPassword ? 'text' : 'password'}
                   required
-                  placeholder={mode === 'signup' ? 'At least 6 characters' : 'Enter your password'}
+                  minLength={mode === 'signup' || isPasswordRecovery ? 8 : undefined}
+                  placeholder={mode === 'signup' || isPasswordRecovery ? 'At least 8 characters' : 'Enter your password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                  autoComplete={mode === 'signin' && !isPasswordRecovery ? 'current-password' : 'new-password'}
                 />
                 <button
                   type="button"
@@ -233,27 +295,18 @@ export default function Auth() {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-            </div>
-
-            {mode === 'signin' && (
-              <div className="auth-checkbox-row">
-                <label className="auth-checkbox-label">
-                  <input type="checkbox" defaultChecked />
-                  <span>Remember me for 30 days</span>
-                </label>
-              </div>
-            )}
+            </div>}
 
             <button
               type="submit"
               className="auth-submit-btn"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !isConfigured}
             >
               {isSubmitting ? (
-                <span>{mode === 'signin' ? 'Signing In...' : 'Creating Account...'}</span>
+                <span>{isPasswordRecovery ? 'Updating Password...' : mode === 'reset' ? 'Sending Link...' : mode === 'signin' ? 'Signing In...' : 'Creating Account...'}</span>
               ) : (
                 <>
-                  <span>{mode === 'signin' ? 'Sign In' : 'Create Account'}</span>
+                  <span>{isPasswordRecovery ? 'Update Password' : mode === 'reset' ? 'Send Reset Link' : mode === 'signin' ? 'Sign In' : 'Create Account'}</span>
                   <ArrowRight size={16} />
                 </>
               )}
@@ -263,7 +316,7 @@ export default function Auth() {
           <div className="auth-card__footer">
             <div className="auth-security-badge">
               <ShieldCheck size={16} />
-              <span>Protected by 256-bit SSL encryption</span>
+              <span>Passwords are handled by the account service and are never stored by this app.</span>
             </div>
           </div>
         </div>

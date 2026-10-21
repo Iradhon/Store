@@ -2,10 +2,9 @@ import { useId, useMemo, useRef, useState, useEffect, type FormEvent, type Keybo
 import { ArrowRight, ChevronDown, Filter, RotateCcw, Search } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
-import { products as fallbackProducts } from '../data/products'
-import { getProducts } from '../services/productService'
 import type { Product } from '../types'
 import { useCart } from '../context/useCart'
+import { useCatalog } from '../context/useCatalog'
 import ProductCard from './ProductCard'
 import './styles/product.css'
 
@@ -157,7 +156,7 @@ export default function Products() {
   const [searchParams, setSearchParams] = useSearchParams()
   const initialSearchParam = searchParams.get('search') ?? ''
 
-  const [allProducts, setAllProducts] = useState<Product[]>(fallbackProducts)
+  const { products: allProducts, isLoading, error } = useCatalog()
   const [search, setSearch] = useState(initialSearchParam)
   const [prevSearchParam, setPrevSearchParam] = useState(initialSearchParam)
   const [category, setCategory] = useState('')
@@ -165,19 +164,6 @@ export default function Products() {
   const [visibleCount, setVisibleCount] = useState(INITIAL_PAGE_SIZE)
   const [prevFilterKey, setPrevFilterKey] = useState(`${search}|${category}|${sort}`)
   const [addedNotification, setAddedNotification] = useState<string | null>(null)
-
-  // Fetch from Supabase or fallback
-  useEffect(() => {
-    let isMounted = true
-    getProducts().then((data) => {
-      if (isMounted && data.length > 0) {
-        setAllProducts(data)
-      }
-    })
-    return () => {
-      isMounted = false
-    }
-  }, [])
 
   // Sync search state if URL search query changes
   if (prevSearchParam !== initialSearchParam) {
@@ -211,8 +197,8 @@ export default function Products() {
         return matchesSearch && matchesCategory
       })
       .sort((first, second) => {
-        if (sort === 'price-ascending') return first.price - second.price
-        if (sort === 'price-descending') return second.price - first.price
+        if (sort === 'price-ascending') return first.priceMinor - second.priceMinor
+        if (sort === 'price-descending') return second.priceMinor - first.priceMinor
         return Date.parse(second.createdAt) - Date.parse(first.createdAt)
       })
   }, [allProducts, search, category, sort])
@@ -260,7 +246,7 @@ export default function Products() {
           <div>
             <h1 className="product-directory__title">All Products</h1>
             <p className="product-directory__description">
-              Explore our curated collection of quality products.
+              Browse products in the current published catalog.
             </p>
           </div>
         </header>
@@ -318,7 +304,11 @@ export default function Products() {
           </div>
         </div>
 
-        {visibleProducts.length > 0 ? (
+        {isLoading ? (
+          <p role="status">Loading products…</p>
+        ) : error ? (
+          <p role="alert">{error}</p>
+        ) : visibleProducts.length > 0 ? (
           <>
             <div className="product-directory__grid">
               {visibleProducts.map((product) => (
@@ -349,12 +339,12 @@ export default function Products() {
         ) : (
           <div className="product-empty-state" role="status">
             <h2>
-              {search || category ? 'No matching products found' : 'No products available yet'}
+              {search || category ? 'No matching products found' : 'No products currently published'}
             </h2>
             <p>
               {search || category
                 ? 'Try changing your search or category filter.'
-                : 'We’re getting our collection ready. Please check back soon.'}
+                : 'The catalog currently has no published products.'}
             </p>
             {(search || category) && (
               <button

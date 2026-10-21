@@ -202,27 +202,6 @@
   color: #18181b;
 }
 
-.auth-checkbox-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.auth-checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8125rem;
-  color: #71717a;
-  cursor: pointer;
-}
-
-.auth-checkbox-label input[type='checkbox'] {
-  accent-color: #18181b;
-  width: 1rem;
-  height: 1rem;
-}
-
 .auth-submit-btn {
   display: inline-flex;
   align-items: center;

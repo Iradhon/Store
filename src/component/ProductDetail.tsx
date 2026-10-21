@@ -1,113 +1,72 @@
-import { useState, useEffect } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
-import {
-  ShoppingCart,
-  Star,
-  Truck,
-  ShieldCheck,
-  RotateCcw,
-  Check,
-  ChevronRight,
-  ArrowLeft,
-  Minus,
-  Plus,
-} from 'lucide-react'
-import { products as fallbackProducts } from '../data/products'
-import { getProductById, getProducts } from '../services/productService'
+import { useEffect, useState } from 'react'
+import { useParams, Link } from 'react-router-dom'
+import { ShoppingCart, Check, AlertCircle, ChevronRight, ArrowLeft, Minus, Plus } from 'lucide-react'
 import type { Product } from '../types'
 import { useCart } from '../context/useCart'
+import { useCatalog } from '../context/useCatalog'
+import { formatMoney } from '../lib/money'
 import ProductCard from './ProductCard'
 import './styles/productDetail.css'
 import './styles/product.css'
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-  const [quantity, setQuantity] = useState(1)
-  const [prevId, setPrevId] = useState(id)
+  const [quantitySelection, setQuantitySelection] = useState({ productId: id, value: 1 })
+  const quantity = quantitySelection.productId === id ? quantitySelection.value : 1
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const { products, isLoading, error } = useCatalog()
+  const { addToCart } = useCart()
 
-  const [product, setProduct] = useState<Product | undefined>(() =>
-    fallbackProducts.find((p) => p.id === id),
-  )
-  const [allProducts, setAllProducts] = useState<Product[]>(fallbackProducts)
-
-  // Fetch product and related products
-  useEffect(() => {
-    if (id) {
-      getProductById(id).then((p) => {
-        if (p) setProduct(p)
-      })
-    }
-    getProducts().then((data) => {
-      if (data.length > 0) setAllProducts(data)
-    })
-  }, [id])
-
-  // Reset quantity during render if product ID changes
-  if (prevId !== id) {
-    setPrevId(id)
-    setQuantity(1)
-  }
-
-  // Scroll to top when product ID changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [id])
 
-  const { addToCart } = useCart()
+  if (isLoading) return <div className="product-not-found" role="status">Loading product…</div>
+  if (error) return <div className="product-not-found" role="alert">{error}</div>
 
+  const product = products.find((item) => item.id === id)
   if (!product) {
     return (
       <div className="product-not-found">
         <div className="product-not-found__container">
           <h2>Product Not Found</h2>
-          <p>The product you are looking for does not exist or may have been removed.</p>
+          <p>This product is not in the current published catalog.</p>
           <Link to="/products" className="product-not-found__btn">
             <ArrowLeft size={16} />
-            <span>Back to All Products</span>
+            <span>Back to Products</span>
           </Link>
         </div>
       </div>
     )
   }
 
-  const relatedProducts = allProducts
-    .filter((p) => p.category === product.category && p.id !== product.id)
+  const relatedProducts = products
+    .filter((item) => item.category === product.category && item.id !== product.id)
     .slice(0, 4)
 
-  function handleAddToCart(p: Product = product!, qty: number = quantity) {
-    addToCart(p, qty)
-    setToastMessage(`Added ${qty}x "${p.name}" to cart`)
-    setTimeout(() => {
-      setToastMessage(null)
-    }, 2500)
-  }
-
-  function handleBuyNow() {
-    handleAddToCart(product!, quantity)
-    navigate('/cart')
+  function handleAddToCart(item: Product = product!, amount: number = quantity) {
+    addToCart(item, amount)
+    setToastMessage(`Added ${amount} × ${item.name} to your cart`)
+    window.setTimeout(() => setToastMessage(null), 2500)
   }
 
   function handleQuantityChange(delta: number) {
-    setQuantity((prev) => Math.max(1, Math.min(prev + delta, 99)))
+    setQuantitySelection((current) => {
+      const currentQuantity = current.productId === id ? current.value : 1
+      return {
+        productId: id,
+        value: Math.max(1, Math.min(currentQuantity + delta, 99, product!.inventoryQuantity)),
+      }
+    })
   }
 
-  const formattedPrice = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(product.price)
+  const available = product.inventoryQuantity > 0
 
   return (
     <div className="product-detail-page">
-      {toastMessage && (
-        <div className="product-toast" role="status">
-          <span>{toastMessage}</span>
-        </div>
-      )}
+      {toastMessage && <div className="product-toast" role="status">{toastMessage}</div>}
 
       <div className="product-detail__container">
-        {/* Breadcrumb Navigation */}
         <nav className="product-detail__breadcrumb" aria-label="Breadcrumb">
           <Link to="/">Home</Link>
           <ChevronRight size={14} className="breadcrumb-separator" />
@@ -116,53 +75,33 @@ export default function ProductDetail() {
           <span className="breadcrumb-current">{product.name}</span>
         </nav>
 
-        {/* Main Product Section */}
         <div className="product-detail__main">
-          {/* Left Column: Image Gallery */}
           <div className="product-detail__media">
             <div className="product-detail__image-wrap">
               <img
-                src={product.image}
+                src={product.imageUrl ?? '/product-placeholder.svg'}
                 alt={product.name}
                 className="product-detail__image"
               />
             </div>
           </div>
 
-          {/* Right Column: Product Information & Purchase Controls */}
           <div className="product-detail__info">
             <div className="product-detail__category-badge">{product.category}</div>
-
             <h1 className="product-detail__title">{product.name}</h1>
 
-            <div className="product-detail__rating-row">
-              <div className="product-detail__stars" aria-label={`Rated ${product.rating ?? 4.8} out of 5 stars`}>
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <Star
-                    key={index}
-                    size={16}
-                    className="product-detail__star"
-                    fill="currentColor"
-                  />
-                ))}
-              </div>
-              <span className="product-detail__rating-score">{product.rating ?? 4.8}</span>
-              <span className="product-detail__rating-count">
-                ({product.reviewsCount ?? 42} reviews)
-              </span>
-            </div>
-
             <div className="product-detail__price-row">
-              <span className="product-detail__price">{formattedPrice}</span>
+              <span className="product-detail__price">
+                {formatMoney(product.priceMinor, product.currency)}
+              </span>
               <span className="product-detail__stock-badge">
-                <Check size={14} />
-                <span>In Stock • Ready to ship</span>
+                {available ? <Check size={14} /> : <AlertCircle size={14} />}
+                <span>{available ? 'Available' : 'Out of stock'}</span>
               </span>
             </div>
 
             <p className="product-detail__description">{product.description}</p>
 
-            {/* Quantity Stepper & Actions */}
             <div className="product-detail__actions-section">
               <div className="product-detail__quantity-group">
                 <span className="product-detail__label">Quantity:</span>
@@ -171,18 +110,17 @@ export default function ProductDetail() {
                     type="button"
                     className="stepper-btn"
                     onClick={() => handleQuantityChange(-1)}
-                    disabled={quantity <= 1}
+                    disabled={!available || quantity <= 1}
                     aria-label="Decrease quantity"
                   >
                     <Minus size={14} />
                   </button>
-                  <span className="stepper-value" aria-live="polite">
-                    {quantity}
-                  </span>
+                  <span className="stepper-value" aria-live="polite">{quantity}</span>
                   <button
                     type="button"
                     className="stepper-btn"
                     onClick={() => handleQuantityChange(1)}
+                    disabled={!available || quantity >= Math.min(99, product.inventoryQuantity)}
                     aria-label="Increase quantity"
                   >
                     <Plus size={14} />
@@ -195,53 +133,24 @@ export default function ProductDetail() {
                   type="button"
                   className="btn-add-to-cart"
                   onClick={() => handleAddToCart(product, quantity)}
+                  disabled={!available}
                 >
                   <ShoppingCart size={18} />
-                  <span>Add to Cart</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="btn-buy-now"
-                  onClick={handleBuyNow}
-                >
-                  <span>Buy Now</span>
+                  <span>{available ? 'Add to Cart' : 'Unavailable'}</span>
                 </button>
               </div>
             </div>
 
-            {/* Product Value Propositions */}
-            <div className="product-detail__perks">
-              <div className="perk-item">
-                <Truck size={18} className="perk-icon" />
-                <div>
-                  <h4>Free Worldwide Shipping</h4>
-                  <p>On all orders over $50. Tracked & insured delivery.</p>
-                </div>
-              </div>
-              <div className="perk-item">
-                <RotateCcw size={18} className="perk-icon" />
-                <div>
-                  <h4>30-Day Money-Back Guarantee</h4>
-                  <p>Hassle-free returns if you are not completely satisfied.</p>
-                </div>
-              </div>
-              <div className="perk-item">
-                <ShieldCheck size={18} className="perk-icon" />
-                <div>
-                  <h4>2-Year Official Warranty</h4>
-                  <p>Full manufacturer warranty coverage included.</p>
-                </div>
-              </div>
-            </div>
+            <p className="product-detail__availability-note">
+              Checkout is unavailable until payment, delivery, and tax rules are configured.
+            </p>
           </div>
         </div>
 
-        {/* Related Products Section */}
         {relatedProducts.length > 0 && (
           <section className="product-detail__related">
             <div className="related-header">
-              <h2 className="related-title">You might also like</h2>
+              <h2 className="related-title">More from {product.category}</h2>
               <Link to="/products" className="view-btn">
                 <span>View All</span>
                 <ChevronRight size={16} />
@@ -249,11 +158,7 @@ export default function ProductDetail() {
             </div>
             <div className="product-directory__grid">
               {relatedProducts.map((related) => (
-                <ProductCard
-                  key={related.id}
-                  product={related}
-                  onAddToCart={(p) => handleAddToCart(p, 1)}
-                />
+                <ProductCard key={related.id} product={related} onAddToCart={handleAddToCart} />
               ))}
             </div>
           </section>
