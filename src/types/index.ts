@@ -8,6 +8,7 @@ export interface Product {
   currency: string
   description: string
   imageUrl: string | null
+  imageUrls: string[]
   inventoryQuantity: number
   isPublished: boolean
   featured: boolean
@@ -67,6 +68,7 @@ export interface UserProfile {
   email: string
   fullName?: string
   avatarUrl?: string
+  phone?: string
   role?: 'admin' | 'customer'
   createdAt?: string
 }

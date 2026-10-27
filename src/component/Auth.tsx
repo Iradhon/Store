@@ -123,8 +123,8 @@ export default function Auth() {
             {user.fullName && <span> ({user.fullName})</span>}
           </p>
           <div className="auth-signed-in__actions">
-            <Link to="/orders" className="auth-btn auth-btn--primary">
-              View Order History
+            <Link to="/account" className="auth-btn auth-btn--primary">
+              Go to My Account
             </Link>
             <button
               type="button"

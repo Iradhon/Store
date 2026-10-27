@@ -1,7 +1,9 @@
-import { ShoppingCart } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Heart, ShoppingCart } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 import type { Product } from '../types'
 import { formatMoney } from '../lib/money'
+import { useAuth } from '../context/useAuth'
+import { useWishlist } from '../context/useWishlist'
 
 interface ProductCardProps {
   product: Product
@@ -9,12 +11,28 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, onAddToCart }: ProductCardProps) {
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  const { isWishlisted, pendingProductIds, toggleProduct } = useWishlist()
+  const wishlisted = isWishlisted(product.id)
+  const wishlistPending = pendingProductIds.includes(product.id)
+
   function handleCartClick(e: React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault()
     e.stopPropagation()
     if (onAddToCart) {
       onAddToCart(product)
     }
+  }
+
+  function handleWishlistClick(e: React.MouseEvent<HTMLButtonElement>) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!user) {
+      navigate('/auth')
+      return
+    }
+    void toggleProduct(product.id)
   }
 
   const formattedPrice = formatMoney(product.priceMinor, product.currency)
@@ -33,8 +51,23 @@ export default function ProductCard({ product, onAddToCart }: ProductCardProps) 
             alt={product.name}
             loading="lazy"
           />
+          {product.inventoryQuantity <= 0 && (
+            <span className="product-card__stock-badge">Out of stock</span>
+          )}
         </div>
       </Link>
+
+      <button
+        type="button"
+        className={`product-card__wishlist-btn${wishlisted ? ' is-wishlisted' : ''}`}
+        aria-label={wishlisted ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
+        aria-pressed={wishlisted}
+        title={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+        disabled={wishlistPending}
+        onClick={handleWishlistClick}
+      >
+        <Heart size={18} fill={wishlisted ? 'currentColor' : 'none'} />
+      </button>
 
       <div className="product-card__info">
         <Link to={`/products/${product.id}`} className="product-card__title-link">
@@ -49,7 +82,8 @@ export default function ProductCard({ product, onAddToCart }: ProductCardProps) 
           <button
             type="button"
             className="product-card__cart-btn"
-            aria-label={`Add ${product.name} to cart`}
+            aria-label={product.inventoryQuantity > 0 ? `Add ${product.name} to cart` : `${product.name} is out of stock`}
+            title={product.inventoryQuantity > 0 ? 'Add to cart' : 'Out of stock'}
             onClick={handleCartClick}
             disabled={product.inventoryQuantity <= 0}
           >

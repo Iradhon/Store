@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { Package, ArrowRight, MapPin, RefreshCw } from 'lucide-react'
 import { useOrder } from '../context/useOrder'
 import { useAuth } from '../context/useAuth'
@@ -6,6 +6,8 @@ import { formatMoney } from '../lib/money'
 import './styles/orders.css'
 
 export default function Orders() {
+  const location = useLocation()
+  const orderBasePath = location.pathname.startsWith('/account') ? '/account/orders' : '/orders'
   const { orders, isLoading, error, refresh } = useOrder()
   const { user } = useAuth()
 
@@ -107,7 +109,7 @@ export default function Orders() {
                 </div>
 
                 <div className="order-history-card__actions">
-                  <Link to={`/orders/${order.id}`} className="order-view-receipt-btn">
+                  <Link to={`${orderBasePath}/${order.id}`} className="order-view-receipt-btn">
                     <span>View Order</span><ArrowRight size={14} />
                   </Link>
                   <div className="order-shipping-summary">

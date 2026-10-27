@@ -12,6 +12,7 @@ function toProfile(session: Session): UserProfile {
     id: authUser.id,
     email: authUser.email ?? '',
     fullName: typeof metadata.full_name === 'string' ? metadata.full_name : undefined,
+    phone: typeof metadata.phone === 'string' ? metadata.phone : undefined,
     avatarUrl: typeof metadata.avatar_url === 'string' ? metadata.avatar_url : undefined,
     role: 'customer',
     createdAt: authUser.created_at,
@@ -32,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.setTimeout(() => {
         void supabase
           ?.from('profiles')
-          .select('display_name, avatar_url, role')
+          .select('display_name, avatar_url, phone, role')
           .eq('id', userId)
           .maybeSingle()
           .then(({ data }) => {
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   ...current,
                   fullName: data.display_name ?? current.fullName,
                   avatarUrl: data.avatar_url ?? current.avatarUrl,
+                  phone: data.phone ?? undefined,
                   role: data.role,
                 }
               : current)
@@ -109,6 +111,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error ? { success: false, error: error.message } : { success: true }
   }
 
+  async function updateProfile(fullName: string, phone: string): Promise<{ success: boolean; error?: string }> {
+    if (!supabase || !user) return { success: false, error: 'Sign in to update your profile.' }
+
+    const normalizedName = fullName.trim()
+    const normalizedPhone = phone.trim() || null
+    if (!normalizedName) return { success: false, error: 'Enter your full name.' }
+    if (normalizedName.length > 120) return { success: false, error: 'Your name must be 120 characters or fewer.' }
+    if (normalizedPhone && normalizedPhone.length > 32) return { success: false, error: 'Your phone number must be 32 characters or fewer.' }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ display_name: normalizedName, phone: normalizedPhone })
+      .eq('id', user.id)
+      .select('display_name, phone')
+      .maybeSingle()
+
+    if (error) return { success: false, error: 'Your profile could not be saved. Please try again.' }
+    if (!data) return { success: false, error: 'Your profile was not found. Refresh and try again.' }
+
+    setUser((current) => current?.id === user.id
+      ? { ...current, fullName: data.display_name ?? undefined, phone: data.phone ?? undefined }
+      : current)
+    return { success: true }
+  }
+
   async function signOut(): Promise<void> {
     if (!supabase) return
     const { error } = await supabase.auth.signOut()
@@ -125,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUp,
         requestPasswordReset,
         updatePassword,
+        updateProfile,
         signOut,
       }}
     >

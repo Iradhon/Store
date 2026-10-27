@@ -1,10 +1,12 @@
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { ArrowLeft, CreditCard, MapPin, Package } from 'lucide-react'
 import { useOrder } from '../context/useOrder'
 import { formatMoney } from '../lib/money'
 import './styles/orderSuccess.css'
 
 export default function OrderDetails() {
+  const location = useLocation()
+  const ordersPath = location.pathname.startsWith('/account') ? '/account/orders' : '/orders'
   const { orderId } = useParams<{ orderId: string }>()
   const { getOrder, isLoading, error } = useOrder()
   const order = orderId ? getOrder(orderId) : undefined
@@ -17,7 +19,7 @@ export default function OrderDetails() {
         <div className="order-not-found-card">
           <h1>Order not found</h1>
           <p>{error ?? 'This order is unavailable for the signed-in account.'}</p>
-          <Link to="/orders" className="btn-primary">View Order History</Link>
+          <Link to={ordersPath} className="btn-primary">View Order History</Link>
         </div>
       </div>
     )
@@ -79,7 +81,7 @@ export default function OrderDetails() {
         </div>
 
         <div className="order-success-actions">
-          <Link to="/orders" className="btn-secondary"><ArrowLeft size={16} /><span>Order History</span></Link>
+          <Link to={ordersPath} className="btn-secondary"><ArrowLeft size={16} /><span>Order History</span></Link>
           <Link to="/products" className="btn-primary"><span>Browse Products</span></Link>
         </div>
       </div>

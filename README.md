@@ -18,7 +18,7 @@ A React and TypeScript storefront backed by Supabase Auth and Postgres. The cata
 
    ```powershell
    npx supabase login
-   npx supabase link --project-ref tavjsipzqnlxcmxdivuu
+   npx supabase link --project-ref zrmffqbxyfzwncutqzxu
    npx supabase migration list
    npx supabase db push
    ```

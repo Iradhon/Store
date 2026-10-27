@@ -9,6 +9,7 @@ export interface AuthContextType {
   signUp: (email: string, password: string, fullName: string) => Promise<{ success: boolean; error?: string; needsEmailConfirmation?: boolean }>
   requestPasswordReset: (email: string) => Promise<{ success: boolean; error?: string }>
   updatePassword: (password: string) => Promise<{ success: boolean; error?: string }>
+  updateProfile: (fullName: string, phone: string) => Promise<{ success: boolean; error?: string }>
   signOut: () => Promise<void>
 }
 

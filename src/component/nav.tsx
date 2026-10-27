@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Search,
   Handbag,
@@ -18,8 +18,10 @@ import './styles/nav.css'
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const { totalItemsCount } = useCart()
+  const accountMenuRef = useRef<HTMLDivElement>(null)
+  const { distinctProductCount } = useCart()
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -51,6 +53,22 @@ export default function Navbar() {
     }
   }, [isMobileMenuOpen])
 
+  useEffect(() => {
+    if (!isAccountMenuOpen) return
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !accountMenuRef.current?.contains(event.target)) setIsAccountMenuOpen(false)
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsAccountMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isAccountMenuOpen])
+
   function handleSearch(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (searchQuery.trim()) {
@@ -71,9 +89,6 @@ export default function Navbar() {
             <Link className="navbar__link" to="/products">
               All Products
             </Link>
-            {user?.role === 'admin' && (
-              <Link className="navbar__link" to="/admin/products">Manage Catalog</Link>
-            )}
           </nav>
 
           <form role="search" className="navbar__search" onSubmit={handleSearch}>
@@ -91,31 +106,35 @@ export default function Navbar() {
           </form>
 
           <div className="navbar__actions">
-            <Link className="navbar__cart" to="/cart" aria-label={`Cart with ${totalItemsCount} items`}>
+            <Link className="navbar__cart" to="/cart" aria-label={`Cart with ${distinctProductCount} different products`}>
               <Handbag />
-              {totalItemsCount > 0 && (
-                <span className="navbar__cart-badge" aria-label={`${totalItemsCount} items in cart`}>
-                  {totalItemsCount}
+              {distinctProductCount > 0 && (
+                <span className="navbar__cart-badge" aria-label={`${distinctProductCount} different products in cart`}>
+                  {distinctProductCount}
                 </span>
               )}
             </Link>
 
             {user ? (
-              <div className="navbar__user-menu">
-                <Link to="/orders" className="navbar__user-btn" title="View Orders">
-                  <User size={16} />
-                  <span>{user.fullName || user.email.split('@')[0]}</span>
-                  {user.role === 'admin' && <span className="navbar__admin-badge">Admin</span>}
-                </Link>
+              <div className="navbar__account-menu" ref={accountMenuRef}>
                 <button
                   type="button"
-                  className="navbar__signout-btn"
-                  onClick={() => signOut()}
-                  title="Sign Out"
-                  aria-label="Sign Out"
+                  className="navbar__account-trigger"
+                  aria-label="Open account menu"
+                  aria-haspopup="menu"
+                  aria-expanded={isAccountMenuOpen}
+                  onClick={() => setIsAccountMenuOpen((open) => !open)}
                 >
-                  <LogOut size={16} />
+                  <User size={20} strokeWidth={1.8} />
                 </button>
+                {isAccountMenuOpen && (
+                  <div className="navbar__account-dropdown" role="menu">
+                    <Link role="menuitem" to="/account" onClick={() => setIsAccountMenuOpen(false)}><User size={19} /><span>My Account</span></Link>
+                    <Link role="menuitem" to="/account/orders" onClick={() => setIsAccountMenuOpen(false)}><Handbag size={19} /><span>My Orders</span></Link>
+                    {user.role === 'admin' && <Link role="menuitem" to="/admin" onClick={() => setIsAccountMenuOpen(false)}><Settings size={19} /><span>Admin Panel</span></Link>}
+                    <button type="button" role="menuitem" className="navbar__account-signout" onClick={() => { void signOut(); setIsAccountMenuOpen(false) }}><LogOut size={19} /><span>Sign Out</span></button>
+                  </div>
+                )}
               </div>
             ) : (
               <Link className="navbar__signin" to="/auth">
@@ -204,31 +223,31 @@ export default function Navbar() {
             >
               <Handbag size={18} />
               <span>My Cart</span>
-              {totalItemsCount > 0 && (
-                <span className="mobile-drawer__badge">{totalItemsCount}</span>
+              {distinctProductCount > 0 && (
+                <span className="mobile-drawer__badge">{distinctProductCount}</span>
               )}
             </Link>
             <Link
               className="mobile-drawer__link"
-              to="/orders"
+              to={user ? '/account/orders' : '/auth'}
               onClick={() => setIsMobileMenuOpen(false)}
             >
               <Package size={18} />
-              <span>Order History</span>
+              <span>{user ? 'My Orders' : 'Order History'}</span>
             </Link>
             {user?.role === 'admin' && (
-              <Link className="mobile-drawer__link" to="/admin/products" onClick={() => setIsMobileMenuOpen(false)}>
+              <Link className="mobile-drawer__link" to="/admin" onClick={() => setIsMobileMenuOpen(false)}>
                 <Settings size={18} />
-                <span>Manage Catalog</span>
+                <span>Admin Panel</span>
               </Link>
             )}
             <Link
               className="mobile-drawer__link"
-              to="/auth"
+              to={user ? '/account' : '/auth'}
               onClick={() => setIsMobileMenuOpen(false)}
             >
               <User size={18} />
-              <span>{user ? `Account (${user.email})` : 'Sign In / Account'}</span>
+              <span>{user ? 'My Account' : 'Sign In / Account'}</span>
               {user?.role === 'admin' && <span className="navbar__admin-badge">Admin</span>}
             </Link>
           </nav>

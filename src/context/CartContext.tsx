@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { CartItem, Product } from '../types'
 import { CartContext } from './useCart'
 import { useCatalog } from './useCatalog'
@@ -25,7 +25,13 @@ function readCart(): CartItem[] {
 export function CartProvider({ children }: { children: ReactNode }) {
   const { products, isLoading: isCatalogLoading, error: catalogError } = useCatalog()
   const [items, setItems] = useState<CartItem[]>(readCart)
+  const itemsRef = useRef(items)
   const [cartNotice, setCartNotice] = useState<string | null>(null)
+
+  function commitItems(nextItems: CartItem[]) {
+    itemsRef.current = nextItems
+    setItems(nextItems)
+  }
 
   useEffect(() => {
     if (isCatalogLoading || catalogError) return
@@ -33,6 +39,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const currentProducts = new Map(products.map((product) => [product.id, product]))
     const nextItems: CartItem[] = []
     let removedCount = 0
+    let reducedQuantity = 0
     let changed = false
 
     for (const item of items) {
@@ -40,17 +47,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const quantity = currentProduct ? Math.min(item.quantity, currentProduct.inventoryQuantity, 99) : 0
       if (!currentProduct || quantity <= 0) {
         removedCount += 1
+        reducedQuantity += item.quantity
         changed = true
         continue
       }
+      if (quantity < item.quantity) reducedQuantity += item.quantity - quantity
       if (item.product.updatedAt !== currentProduct.updatedAt || quantity !== item.quantity) changed = true
       nextItems.push({ product: currentProduct, quantity })
     }
 
     if (changed) {
       // oxlint-disable-next-line react/set-state-in-effect -- Reconcile persisted cart snapshots after loading the authoritative catalog.
-      setItems(nextItems)
-      if (removedCount > 0) setCartNotice(`${removedCount} unavailable cart ${removedCount === 1 ? 'item was' : 'items were'} removed.`)
+      commitItems(nextItems)
+      if (reducedQuantity > 0) {
+        setCartNotice(removedCount > 0
+          ? `${removedCount} unavailable ${removedCount === 1 ? 'product was' : 'products were'} removed and cart quantities were adjusted to current stock.`
+          : 'Cart quantities were reduced to match current stock.')
+      }
     }
   }, [catalogError, isCatalogLoading, items, products])
 
@@ -63,28 +76,37 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [items])
 
   function addToCart(product: Product, quantity = 1) {
-    if (!Number.isInteger(quantity) || quantity <= 0 || product.inventoryQuantity <= 0) return
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      return { addedQuantity: 0, remainingQuantity: 0, inventoryRemainingQuantity: product.inventoryQuantity }
+    }
 
-    setItems((previousItems) => {
-      const existingIndex = previousItems.findIndex((item) => item.product.id === product.id)
-      const maxQuantity = Math.min(99, product.inventoryQuantity)
+    const currentItems = itemsRef.current
+    const existingIndex = currentItems.findIndex((item) => item.product.id === product.id)
+    const maxQuantity = Math.min(99, Math.max(0, product.inventoryQuantity))
+    const alreadyInCart = existingIndex >= 0 ? currentItems[existingIndex].quantity : 0
+    const availableToAdd = Math.max(0, maxQuantity - alreadyInCart)
+    const addedQuantity = Math.min(quantity, availableToAdd)
 
+    if (addedQuantity > 0) {
       if (existingIndex >= 0) {
-        const updated = [...previousItems]
-        const oldItem = updated[existingIndex]
-        updated[existingIndex] = {
-          product,
-          quantity: Math.min(oldItem.quantity + quantity, maxQuantity),
-        }
-        return updated
+        const updated = [...currentItems]
+        updated[existingIndex] = { product, quantity: alreadyInCart + addedQuantity }
+        commitItems(updated)
+      } else {
+        commitItems([...currentItems, { product, quantity: addedQuantity }])
       }
+    }
 
-      return [...previousItems, { product, quantity: Math.min(quantity, maxQuantity) }]
-    })
+    const quantityInCart = alreadyInCart + addedQuantity
+    return {
+      addedQuantity,
+      remainingQuantity: Math.max(0, maxQuantity - quantityInCart),
+      inventoryRemainingQuantity: Math.max(0, product.inventoryQuantity - quantityInCart),
+    }
   }
 
   function removeFromCart(productId: string) {
-    setItems((current) => current.filter((item) => item.product.id !== productId))
+    commitItems(itemsRef.current.filter((item) => item.product.id !== productId))
   }
 
   function updateQuantity(productId: string, quantity: number) {
@@ -93,7 +115,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    setItems((current) => current.flatMap((item) => {
+    commitItems(itemsRef.current.flatMap((item) => {
       if (item.product.id !== productId) return [item]
       const maxQuantity = Math.min(99, item.product.inventoryQuantity)
       return maxQuantity === 0 ? [] : [{ ...item, quantity: Math.min(quantity, maxQuantity) }]
@@ -101,11 +123,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }
 
   function clearCart() {
-    setItems([])
+    commitItems([])
     setCartNotice(null)
   }
 
   const totalItemsCount = items.reduce((total, item) => total + item.quantity, 0)
+  const distinctProductCount = items.length
   const subtotalMinorByCurrency = items.reduce<Record<string, number>>((totals, item) => {
     totals[item.product.currency] = (totals[item.product.currency] ?? 0) + item.product.priceMinor * item.quantity
     return totals
@@ -117,6 +140,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       value={{
         items,
         totalItemsCount,
+        distinctProductCount,
         subtotalMinorByCurrency,
         isCatalogLoading,
         catalogError,

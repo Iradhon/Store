@@ -15,6 +15,7 @@ export function mapProduct(row: ProductRow): Product {
     currency: row.currency,
     description: row.description,
     imageUrl: row.image_url,
+    imageUrls: row.image_urls?.length ? row.image_urls : row.image_url ? [row.image_url] : [],
     inventoryQuantity: row.inventory_quantity,
     isPublished: row.is_published,
     featured: row.featured,

@@ -6,6 +6,7 @@ import type { Product } from '../types'
 import { useCart } from '../context/useCart'
 import { useCatalog } from '../context/useCatalog'
 import ProductCard from './ProductCard'
+import { getAddToCartFeedback } from '../lib/cartFeedback'
 import './styles/product.css'
 
 type ProductSort = 'newest' | 'price-ascending' | 'price-descending'
@@ -164,6 +165,7 @@ export default function Products() {
   const [visibleCount, setVisibleCount] = useState(INITIAL_PAGE_SIZE)
   const [prevFilterKey, setPrevFilterKey] = useState(`${search}|${category}|${sort}`)
   const [addedNotification, setAddedNotification] = useState<string | null>(null)
+  const [notificationTone, setNotificationTone] = useState<'success' | 'alert'>('success')
 
   // Sync search state if URL search query changes
   if (prevSearchParam !== initialSearchParam) {
@@ -219,8 +221,9 @@ export default function Products() {
   }
 
   function handleAddToCart(product: Product) {
-    addToCart(product, 1)
-    setAddedNotification(`Added "${product.name}" to cart`)
+    const feedback = getAddToCartFeedback(product, 1, addToCart(product, 1))
+    setNotificationTone(feedback.tone)
+    setAddedNotification(feedback.message)
     setTimeout(() => {
       setAddedNotification(null)
     }, 2500)
@@ -237,7 +240,7 @@ export default function Products() {
     <section className="product-directory">
       <div className="product-directory__container">
         {addedNotification && (
-          <div className="product-toast" role="status">
+          <div className={`product-toast product-toast--${notificationTone}`} role={notificationTone === 'alert' ? 'alert' : 'status'}>
             <span>{addedNotification}</span>
           </div>
         )}
