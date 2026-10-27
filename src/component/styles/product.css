@@ -246,6 +246,50 @@
   background-color: #f4f4f5;
 }
 
+.product-card__stock-badge {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  background: #fff;
+  color: #b42318;
+  font-size: 0.75rem;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 12%);
+}
+
+.product-card__wishlist-btn {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  z-index: 2;
+  display: inline-grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  place-items: center;
+  border: 1px solid #e5e5e5;
+  border-radius: 50%;
+  background: #fff;
+  color: #404040;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 12%);
+  cursor: pointer;
+  transition: color 150ms ease, transform 150ms ease;
+}
+
+.product-card__wishlist-btn:hover,
+.product-card__wishlist-btn.is-wishlisted {
+  color: #dc2626;
+}
+
+.product-card__wishlist-btn:hover {
+  transform: scale(1.06);
+}
+
+.product-card__wishlist-btn:disabled {
+  cursor: wait;
+}
+
 .product-card__image {
   display: block;
   width: 100%;
@@ -425,6 +469,10 @@
   font-weight: 500;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
   animation: slideUpToast 0.25s ease-out;
+}
+
+.product-toast--alert {
+  background-color: #991b1b;
 }
 
 @keyframes slideUpToast {

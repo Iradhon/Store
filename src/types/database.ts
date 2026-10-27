@@ -3,11 +3,30 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+      categories: {
+        Row: {
+          id: string
+          name: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           id: string
           display_name: string | null
           avatar_url: string | null
+          phone: string | null
           role: 'customer' | 'admin'
           created_at: string
           updated_at: string
@@ -16,6 +35,7 @@ export type Database = {
           id: string
           display_name?: string | null
           avatar_url?: string | null
+          phone?: string | null
           role?: 'customer' | 'admin'
           created_at?: string
           updated_at?: string
@@ -24,7 +44,85 @@ export type Database = {
           id?: string
           display_name?: string | null
           avatar_url?: string | null
+          phone?: string | null
           role?: 'customer' | 'admin'
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      wishlist_items: {
+        Row: {
+          user_id: string
+          product_id: string
+          created_at: string
+        }
+        Insert: {
+          user_id?: string
+          product_id: string
+          created_at?: string
+        }
+        Update: {
+          user_id?: string
+          product_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'wishlist_items_product_id_fkey'
+            columns: ['product_id']
+            isOneToOne: false
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      addresses: {
+        Row: {
+          id: string
+          user_id: string
+          label: string
+          full_name: string
+          phone: string
+          address_line_1: string
+          address_line_2: string | null
+          city: string
+          state_region: string | null
+          postal_code: string
+          country: string
+          is_default: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string
+          label?: string
+          full_name: string
+          phone: string
+          address_line_1: string
+          address_line_2?: string | null
+          city: string
+          state_region?: string | null
+          postal_code: string
+          country: string
+          is_default?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          label?: string
+          full_name?: string
+          phone?: string
+          address_line_1?: string
+          address_line_2?: string | null
+          city?: string
+          state_region?: string | null
+          postal_code?: string
+          country?: string
+          is_default?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -39,6 +137,7 @@ export type Database = {
           category: string
           description: string
           image_url: string | null
+          image_urls: string[]
           price_minor: number
           currency: string
           inventory_quantity: number
@@ -55,6 +154,7 @@ export type Database = {
           category: string
           description?: string
           image_url?: string | null
+          image_urls?: string[]
           price_minor: number
           currency: string
           inventory_quantity?: number
@@ -71,6 +171,7 @@ export type Database = {
           category?: string
           description?: string
           image_url?: string | null
+          image_urls?: string[]
           price_minor?: number
           currency?: string
           inventory_quantity?: number
@@ -79,7 +180,15 @@ export type Database = {
           created_at?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'products_category_fk'
+            columns: ['category']
+            isOneToOne: false
+            referencedRelation: 'categories'
+            referencedColumns: ['name']
+          },
+        ]
       }
       orders: {
         Row: {
@@ -194,7 +303,12 @@ export type Database = {
       }
     }
     Views: { [_ in never]: never }
-    Functions: { [_ in never]: never }
+    Functions: {
+      set_default_address: {
+        Args: { target_address_id: string | null }
+        Returns: undefined
+      }
+    }
     Enums: { app_role: 'customer' | 'admin' }
     CompositeTypes: { [_ in never]: never }
   }

@@ -4,20 +4,23 @@ import { Link } from 'react-router-dom'
 import type { Product } from '../types'
 import { useCart } from '../context/useCart'
 import { useCatalog } from '../context/useCatalog'
+import { getAddToCartFeedback } from '../lib/cartFeedback'
 import ProductCard from './ProductCard'
 import './styles/home.css'
 import './styles/product.css'
 
 function Home() {
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [toastTone, setToastTone] = useState<'success' | 'alert'>('success')
   const { products, isLoading, error } = useCatalog()
   const { addToCart } = useCart()
 
   const featuredProducts = products.filter((product) => product.featured).slice(0, 4)
 
   function handleAddToCart(product: Product) {
-    addToCart(product, 1)
-    setToastMessage(`Added "${product.name}" to cart`)
+    const feedback = getAddToCartFeedback(product, 1, addToCart(product, 1))
+    setToastTone(feedback.tone)
+    setToastMessage(feedback.message)
     setTimeout(() => {
       setToastMessage(null)
     }, 2500)
@@ -26,7 +29,7 @@ function Home() {
   return (
     <div className="home-page">
       {toastMessage && (
-        <div className="product-toast" role="status">
+        <div className={`product-toast product-toast--${toastTone}`} role={toastTone === 'alert' ? 'alert' : 'status'}>
           <span>{toastMessage}</span>
         </div>
       )}

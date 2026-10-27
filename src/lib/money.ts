@@ -1,9 +1,11 @@
 export function formatMoney(amountMinor: number, currency: string): string {
   try {
-    return new Intl.NumberFormat(undefined, {
+    const formatter = new Intl.NumberFormat(undefined, {
       style: 'currency',
       currency,
-    }).format(amountMinor / 100)
+    })
+    const fractionDigits = formatter.resolvedOptions().maximumFractionDigits ?? 2
+    return formatter.format(amountMinor / (10 ** fractionDigits))
   } catch {
     return `${currency} ${(amountMinor / 100).toFixed(2)}`
   }
